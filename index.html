@@ -811,10 +811,11 @@ async function cercaCatalogo(query){
       }
     }catch(_){}
   }
-  /* doppioni via: stesso titolo e stesso autore */
+  /* doppioni via: stesso titolo e stesso autore.
+     Fuori anche le edizioni in alfabeti che Paolo non legge (ebraico, cirillico, cinese...) */
   const visti = new Set();
   return out.filter(x => {
-    if(!x.titolo) return false;
+    if(!x.titolo || !/[a-zA-ZÀ-ÿ]/.test(x.titolo)) return false;
     const k = normalizza(x.titolo) + "|" + normalizza(x.autore);
     if(visti.has(k)) return false;
     visti.add(k);
