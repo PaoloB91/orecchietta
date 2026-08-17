@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Orecchietta</title>
+<meta name="theme-color" content="#7c4a21">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orecchietta">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#f7f3ec; --card:#ffffff; --text:#1d1a16; --muted:#6b6156;
+  --line:#e5ddd1; --accent:#8a5326; --accent-soft:#f2e6d7;
+  --gold:#c8901f; --gold-soft:#faf1dc;
+  --danger:#b32828; --danger-soft:#fdeaea;
+  --radius:14px; --safe-b:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#141110; --card:#1e1a16; --text:#f0ece6; --muted:#a2988b;
+    --line:#31291f; --accent:#d29a55; --accent-soft:#33271a;
+    --gold:#d9a441; --gold-soft:#2e2413;
+    --danger:#ff8a80; --danger-soft:#3a1f1f;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);
+  -webkit-text-size-adjust:100%;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* header */
+header{
+  position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:10px 16px 8px;border-bottom:1px solid var(--line);
+}
+.hrow{display:flex;align-items:center;gap:10px;min-height:44px}
+.htitle{font-size:22px;font-weight:700;letter-spacing:-.02em;flex:1;margin:0}
+.iconbtn{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:var(--text)}
+.iconbtn:active{background:var(--line)}
+.iconbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.search{position:relative;margin-top:8px}
+.search input[type=text]{
+  width:100%;height:48px;padding:0 14px 0 44px;border-radius:12px;
+  border:1px solid var(--line);background:var(--card);
+}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:20px;height:20px;
+  fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:8px 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);color:var(--muted);font-size:13.5px;white-space:nowrap}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+/* griglia libri */
+main{padding:12px 16px calc(96px + var(--safe-b))}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.book{background:none;text-align:left;display:block;width:100%;padding:0}
+.book:active{transform:scale(.97)}
+.cover{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--line);
+  border-radius:10px;border:1px solid var(--line)}
+.cover.ph{display:grid;place-items:center}
+.cover.ph svg{width:30px;height:30px;fill:none;stroke:var(--muted);stroke-width:1.5}
+.bname{font-weight:600;font-size:13px;line-height:1.25;margin:7px 0 2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bauth{font-size:11.5px;color:var(--muted);margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;display:inline-block}
+.tag.tenue{background:transparent;border:1px solid var(--line);color:var(--muted)}
+
+/* stelle */
+.stars{display:inline-flex;gap:2px;vertical-align:middle}
+.star{position:relative;display:inline-block}
+.star svg{display:block;fill:none;stroke:var(--muted);stroke-width:1.6;stroke-linejoin:round}
+.star .fill{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.star .fill svg{fill:var(--gold);stroke:var(--gold)}
+.stars.mini .star svg{width:13px;height:13px}
+.stars.big{gap:6px}
+.stars.big .star svg{width:38px;height:38px}
+.vote-row{display:flex;align-items:center;gap:12px;margin:14px 0 4px}
+.vote-num{font-size:15px;font-weight:700;color:var(--gold);min-width:34px}
+.vote-clear{font-size:13px;color:var(--muted);text-decoration:underline;padding:6px 0}
+
+/* stato vuoto */
+.empty{text-align:center;color:var(--muted);padding:56px 20px}
+.empty svg{width:56px;height:56px;fill:none;stroke:currentColor;stroke-width:1.2;margin-bottom:14px}
+.empty p{margin:6px 0}
+
+/* avvisi */
+.notice{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+  border-left:4px solid var(--accent);border-radius:10px;padding:11px 12px;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.notice b{color:var(--text)}
+.notice button{color:var(--accent);font-weight:600;padding:4px 0}
+.notice .x{margin-left:auto;color:var(--muted);font-size:20px;line-height:1;padding:0 4px}
+
+/* fab */
+.fab{position:fixed;left:16px;right:16px;bottom:calc(16px + var(--safe-b));z-index:30;
+  height:54px;border-radius:16px;background:var(--accent);color:#fff;font-size:17px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.fab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+
+/* schermate a pagina piena */
+.screen{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;
+  padding-top:env(safe-area-inset-top,0px);-webkit-overflow-scrolling:touch}
+.screen[hidden]{display:none}
+.sbar{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:6px;padding:6px 10px;z-index:5}
+.sbar h2{font-size:17px;font-weight:700;margin:0;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbar .txtbtn{color:var(--accent);font-weight:600;padding:10px 8px;min-width:64px}
+.sbar .txtbtn.l{text-align:left}
+.sbar .txtbtn.r{text-align:right}
+.sbody{padding:16px 16px calc(28px + var(--safe-b))}
+
+/* form */
+label.field{display:block;margin-bottom:16px}
+.lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:13px 14px;min-height:48px}
+textarea{resize:vertical;min-height:88px}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6156' stroke-width='2' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:20px;padding-right:42px}
+.fieldrow{display:flex;gap:10px}
+.fieldrow label.field{flex:1}
+.hint{font-size:13px;color:var(--muted);margin:-8px 0 16px}
+.btn{width:100%;height:52px;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:600;margin-top:4px;
+  display:flex;align-items:center;justify-content:center;gap:9px}
+.btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn.ghost{background:var(--card);color:var(--text);border:1px solid var(--line)}
+.btn.danger{background:var(--danger-soft);color:var(--danger);margin-top:12px}
+.btn.oro{background:var(--gold)}
+.btn:disabled{opacity:.55}
+
+/* copertina nel form */
+.cover-btn{width:44%;aspect-ratio:2/3;border:2px dashed var(--line);border-radius:var(--radius);
+  background:var(--card);display:grid;place-items:center;color:var(--muted);overflow:hidden;position:relative;margin:0 auto 6px}
+.cover-btn img{width:100%;height:100%;object-fit:cover}
+.cover-btn .ptxt{display:grid;place-items:center;gap:8px;font-weight:600;font-size:14px;text-align:center;padding:8px}
+.cover-btn svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.photo-actions{display:flex;gap:10px;margin:10px 0 18px;justify-content:center}
+.photo-actions button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 16px;font-size:14px;font-weight:600;min-height:44px}
+
+/* aggiunta libro */
+.addgrande{margin-bottom:14px}
+.sep{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:18px 0 14px}
+.sep::before,.sep::after{content:"";flex:1;height:1px;background:var(--line)}
+.results{margin-top:14px}
+.result{display:flex;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:10px;margin-bottom:10px;align-items:center}
+.result:active{background:var(--accent-soft)}
+.result img{width:46px;height:68px;object-fit:cover;border-radius:6px;background:var(--line);flex:0 0 auto}
+.result .noimg{width:46px;height:68px;border-radius:6px;background:var(--line);flex:0 0 auto;display:grid;place-items:center}
+.result .noimg svg{width:20px;height:20px;fill:none;stroke:var(--muted);stroke-width:1.5}
+.result .rt{font-weight:600;font-size:15px;line-height:1.3;margin:0 0 3px}
+.result .ra{font-size:13px;color:var(--muted);margin:0}
+.searching{color:var(--muted);font-size:14px;text-align:center;padding:14px}
+
+/* scanner */
+#scan-video{width:100%;max-height:56vh;border-radius:var(--radius);background:#000;object-fit:cover}
+.scan-hint{text-align:center;color:var(--muted);font-size:14px;margin:14px 0}
+
+/* dettaglio */
+.dtop{display:flex;gap:16px;align-items:flex-start;margin-bottom:6px}
+.dcover{width:37%;flex:0 0 auto;aspect-ratio:2/3;object-fit:cover;border-radius:10px;background:var(--line);border:1px solid var(--line)}
+.dcover.ph{display:grid;place-items:center}
+.dcover.ph svg{width:36px;height:36px;fill:none;stroke:var(--muted);stroke-width:1.3}
+.dmeta{flex:1;min-width:0}
+.dname{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:2px 0 4px;line-height:1.2}
+.dauth{font-size:14.5px;color:var(--muted);margin:0 0 10px}
+.stato-btns{display:flex;flex-wrap:wrap;gap:6px}
+.stato-btns .chip{font-size:12.5px;padding:7px 11px}
+.rows{margin:10px 0 4px}
+.row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row .k{color:var(--muted);font-size:14px;flex:0 0 auto}
+.row .v{text-align:right;font-weight:600;font-size:14.5px}
+.sect-title{display:flex;align-items:center;gap:10px;margin:26px 0 10px}
+.sect-title h3{font-size:16px;font-weight:700;margin:0;flex:1}
+.sect-title .cnt{font-size:13px;color:var(--muted)}
+
+/* diario di lettura */
+.diario-add{display:flex;gap:10px;margin:12px 0 4px}
+.diario-add button{flex:1;height:48px;border-radius:12px;font-size:15px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.diario-add svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.diario-add .cit{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold)}
+.diario-add .not{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+.voce{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative}
+.voce:active{background:var(--accent-soft)}
+.voce.cit{border-left:4px solid var(--gold)}
+.voce.not{border-left:4px solid var(--accent)}
+.voce .vtesto{margin:0;white-space:pre-wrap;font-size:15px}
+.voce.cit .vtesto{font-style:italic}
+.voce .vcommento{margin:8px 0 0;padding-top:8px;border-top:1px dashed var(--line);font-size:14px;color:var(--muted);white-space:pre-wrap}
+.voce .vmeta{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:var(--muted)}
+.voce .vmeta .vtag{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.voce.cit .vmeta .vtag{color:var(--gold)}
+.voce.not .vmeta .vtag{color:var(--accent)}
+.voce .vthumb{position:absolute;right:12px;bottom:10px;width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+
+/* punti chiave */
+#d-punti{min-height:110px}
+
+/* editor voce */
+.tipo-switch{display:flex;gap:8px;margin-bottom:16px}
+.tipo-switch button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;color:var(--muted)}
+.tipo-switch button.on.cit{background:var(--gold-soft);border-color:var(--gold);color:var(--gold)}
+.tipo-switch button.on.not{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ocr-box{margin-bottom:16px}
+.ocr-foto{width:100%;max-height:200px;object-fit:contain;border-radius:12px;background:var(--line);display:block;margin-bottom:8px}
+.ocr-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:10px 0 4px}
+.ocr-bar div{height:100%;width:0;background:var(--gold);transition:width .2s}
+.ocr-stato{font-size:13px;color:var(--muted)}
+
+/* foto a schermo intero */
+#screen-foto{background:rgba(0,0,0,.92);display:grid;place-items:center;z-index:60}
+#screen-foto img{max-width:100vw;max-height:100vh;object-fit:contain}
+#foto-chiudi{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:14px;color:#fff;font-size:34px;line-height:1;padding:8px}
+
+/* impostazioni */
+.sect{margin-bottom:26px}
+.sect h3{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px}
+.addrow{display:flex;gap:8px;margin-top:10px}
+.addrow input{flex:1}
+.addrow button{flex:0 0 auto;padding:0 18px;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:48px}
+.meta{font-size:13px;color:var(--muted);margin-top:10px}
+.meta.ok{color:var(--accent);font-weight:600}
+.meta.ko{color:var(--danger);font-weight:600}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%) translateY(12px);
+  background:#1d1a16;color:#fff;padding:11px 18px;border-radius:999px;font-size:14px;font-weight:600;
+  z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-color-scheme:dark){#toast{background:#f0ece6;color:#141110}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <h1 class="htitle">Orecchietta</h1>
+    <button class="iconbtn" id="btn-settings" aria-label="Impostazioni">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+  <div class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input type="text" id="q" placeholder="Cerca tra i tuoi libri" autocomplete="off" enterkeyhint="search">
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <div id="notices"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>
+    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>
+    <p id="empty-title"><b>Nessun libro in libreria</b></p>
+    <p id="empty-sub">Tocca "Aggiungi libro" per iniziare.</p>
+  </div>
+</main>
+
+<button class="fab" id="btn-new">
+  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+  Aggiungi libro
+</button>
+
+<!-- AGGIUNTA LIBRO -->
+<section class="screen" id="screen-add" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="add-cancel">Annulla</button>
+    <h2>Aggiungi libro</h2>
+    <span class="txtbtn r"></span>
+  </div>
+  <div class="sbody">
+    <button class="btn oro addgrande" id="btn-scan">
+      <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10.5 8v8M13.5 8v8M17 8v8"/></svg>
+      Inquadra il codice a barre
+    </button>
+    <p class="hint" style="margin-top:0;text-align:center">È il codice sul retro del libro: un secondo e trova l'edizione esatta.</p>
+
+    <div class="sep">oppure cerca</div>
+
+    <div class="addrow" style="margin-top:0">
+      <input type="text" id="add-q" placeholder="Titolo o autore" autocomplete="off" enterkeyhint="search">
+      <button id="add-search">Cerca</button>
+    </div>
+    <div class="results" id="add-results"></div>
+
+    <div class="sep">oppure</div>
+    <button class="btn ghost" id="btn-manual">Inserisci a mano</button>
+
+    <input type="file" id="file-barcode" accept="image/*" capture="environment" hidden>
+  </div>
+</section>
+
+<!-- SCANNER CODICE A BARRE -->
+<section class="screen" id="screen-scan" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="scan-cancel">Annulla</button>
+    <h2>Codice a barre</h2>
+    <span class="txtbtn r"></span>
+  </div>
+  <div class="sbody">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <p class="scan-hint">Inquadra il codice sul retro del libro.</p>
+    <button class="btn ghost" id="scan-photo">Non funziona? Fotografa il codice</button>
+  </div>
+</section>
+
+<!-- SCHEDA / MODIFICA LIBRO -->
+<section class="screen" id="screen-edit" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="edit-cancel">Annulla</button>
+    <h2 id="edit-title">Nuovo libro</h2>
+    <button class="txtbtn r" id="edit-save">Salva</button>
+  </div>
+  <div class="sbody">
+    <button class="cover-btn" id="cover-btn">
+      <div class="ptxt" id="cover-placeholder">
+        <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2.5l1.2-2h6.6l1.2 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg>
+        Foto della copertina
+      </div>
+      <img id="cover-preview" hidden alt="">
+    </button>
+    <div class="photo-actions" id="cover-actions" hidden>
+      <button type="button" id="cover-change">Cambia</button>
+      <button type="button" id="cover-remove">Rimuovi</button>
+    </div>
+    <input type="file" id="file-cover" accept="image/*" hidden>
+
+    <label class="field">
+      <span class="lbl">Titolo</span>
+      <input type="text" id="f-titolo" placeholder="Es. Il deserto dei Tartari" enterkeyhint="next">
+    </label>
+    <label class="field">
+      <span class="lbl">Autore</span>
+      <input type="text" id="f-autore" placeholder="Es. Dino Buzzati" enterkeyhint="done">
+    </label>
+    <div class="fieldrow">
+      <label class="field">
+        <span class="lbl">Anno</span>
+        <input type="number" id="f-anno" placeholder="1940" inputmode="numeric">
+      </label>
+      <label class="field">
+        <span class="lbl">È un saggio?</span>
+        <select id="f-saggio">
+          <option value="no">No</option>
+          <option value="si">Sì</option>
+        </select>
+      </label>
+    </div>
+    <label class="field">
+      <span class="lbl">Stato</span>
+      <select id="f-stato">
+        <option value="da-leggere">Da leggere</option>
+        <option value="in-lettura">In lettura</option>
+        <option value="letto">Letto</option>
+      </select>
+    </label>
+    <div class="fieldrow">
+      <label class="field">
+        <span class="lbl">Inizio lettura</span>
+        <input type="date" id="f-inizio">
+      </label>
+      <label class="field">
+        <span class="lbl">Fine lettura</span>
+        <input type="date" id="f-fine">
+      </label>
+    </div>
+    <label class="field">
+      <span class="lbl">ISBN</span>
+      <input type="text" id="f-isbn" placeholder="Facoltativo" inputmode="numeric">
+    </label>
+
+    <button class="btn danger" id="edit-delete" hidden>Elimina libro</button>
+  </div>
+</section>
+
+<!-- DETTAGLIO LIBRO -->
+<section class="screen" id="screen-detail" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="detail-back">Indietro</button>
+    <h2 id="detail-titlebar">Libro</h2>
+    <button class="txtbtn r" id="detail-edit">Modifica</button>
+  </div>
+  <div class="sbody" id="detail-body"></div>
+</section>
+
+<!-- EDITOR VOCE DEL DIARIO (citazione o nota) -->
+<section class="screen" id="screen-voce" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="voce-cancel">Annulla</button>
+    <h2 id="voce-title">Citazione</h2>
+    <button class="txtbtn r" id="voce-save">Salva</button>
+  </div>
+  <div class="sbody">
+    <div class="tipo-switch" id="tipo-switch">
+      <button class="cit" data-tipo="citazione">Citazione</button>
+      <button class="not" data-tipo="nota">Nota</button>
+    </div>
+
+    <div class="ocr-box" id="ocr-box">
+      <img class="ocr-foto" id="ocr-foto" hidden alt="">
+      <button class="btn oro" id="btn-ocr">
+        <svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2.5l1.2-2h6.6l1.2 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg>
+        <span id="btn-ocr-label">Fotografa la pagina</span>
+      </button>
+      <div class="ocr-bar" id="ocr-bar" hidden><div id="ocr-bar-fill"></div></div>
+      <p class="ocr-stato" id="ocr-stato" hidden></p>
+      <p class="hint" style="margin:8px 0 0">La foto diventa testo qui sotto: controllalo e correggi se serve. In alternativa tocca il campo e usa "Scansiona testo" della tastiera.</p>
+    </div>
+    <input type="file" id="file-pagina" accept="image/*" capture="environment" hidden>
+
+    <label class="field">
+      <span class="lbl" id="lbl-testo">Testo della citazione</span>
+      <textarea id="v-testo" rows="6"></textarea>
+    </label>
+    <div class="fieldrow">
+      <label class="field" style="max-width:40%">
+        <span class="lbl">Pagina</span>
+        <input type="number" id="v-pagina" placeholder="Es. 87" inputmode="numeric">
+      </label>
+    </div>
+    <label class="field" id="campo-commento">
+      <span class="lbl">Un tuo commento (facoltativo)</span>
+      <textarea id="v-commento" rows="3" placeholder="Perché ti ha colpito"></textarea>
+    </label>
+
+    <button class="btn danger" id="voce-delete" hidden>Elimina</button>
+  </div>
+</section>
+
+<!-- FOTO A SCHERMO INTERO -->
+<section class="screen" id="screen-foto" hidden>
+  <img id="foto-full" alt="">
+  <button id="foto-chiudi" aria-label="Chiudi">&times;</button>
+</section>
+
+<!-- IMPOSTAZIONI -->
+<section class="screen" id="screen-settings" hidden>
+  <div class="sbar">
+    <button class="txtbtn l" id="settings-back">Indietro</button>
+    <h2>Impostazioni</h2>
+    <span class="txtbtn r"></span>
+  </div>
+  <div class="sbody">
+    <div class="sect">
+      <h3>Archivio online</h3>
+      <p class="meta" id="sync-stato" style="margin-top:0"></p>
+      <div id="sync-collegato" hidden>
+        <button class="btn" id="btn-sync">Sincronizza ora</button>
+        <button class="btn ghost" id="btn-ripristina" style="margin-top:10px">Scarica tutto dall'archivio</button>
+        <button class="btn ghost" id="btn-scollega" style="margin-top:10px">Scollega</button>
+      </div>
+      <div id="sync-scollegato" hidden>
+        <p class="meta" style="margin-top:0">Collegando l'archivio, ogni libro che salvi finisce anche in un
+        magazzino privato su GitHub: cambiando telefono lo ritrovi. Serve la chiave di accesso creata sul tuo account.</p>
+        <div class="addrow">
+          <input type="text" id="gh-token" placeholder="Incolla la chiave" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="btn-collega">Collega</button>
+        </div>
+      </div>
+    </div>
+    <div class="sect">
+      <h3>Backup su file</h3>
+      <button class="btn" id="btn-export">Esporta backup</button>
+      <button class="btn ghost" id="btn-import" style="margin-top:10px">Importa backup</button>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+      <p class="meta" id="backup-meta"></p>
+    </div>
+    <div class="sect">
+      <h3>Libreria</h3>
+      <p class="meta" id="storage-meta"></p>
+    </div>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- archivio (IndexedDB) ---------- */
+const DB_NAME = "orecchietta", DB_VER = 1;
+let _db = null;
+
+function openDB(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if(!db.objectStoreNames.contains("libri")) db.createObjectStore("libri", {keyPath:"id"});
+      if(!db.objectStoreNames.contains("impostazioni")) db.createObjectStore("impostazioni", {keyPath:"chiave"});
+      if(!db.objectStoreNames.contains("eliminati")) db.createObjectStore("eliminati", {keyPath:"id"});
+    };
+    r.onsuccess = () => {
+      _db = r.result;
+      _db.onversionchange = () => { _db.close(); _db = null; };
+      res(_db);
+    };
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error("Archivio occupato da un'altra scheda"));
+  });
+}
+function tx(store, mode, fn){
+  return openDB().then(db => new Promise((res, rej) => {
+    const t = db.transaction(store, mode);
+    const out = fn(t.objectStore(store));
+    t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error);
+  }));
+}
+const store = {
+  all:      () => tx("libri", "readonly",  s => s.getAll()),
+  get:      id => tx("libri", "readonly",  s => s.get(id)),
+  put:      l  => tx("libri", "readwrite", s => s.put(l)),
+  del:      id => tx("libri", "readwrite", s => s.delete(id)),
+  clear:    () => tx("libri", "readwrite", s => s.clear()),
+  setting:  k  => tx("impostazioni", "readonly",  s => s.get(k)).then(r => r ? r.valore : undefined),
+  setSetting: (k, valore) => tx("impostazioni", "readwrite", s => s.put({chiave:k, valore})),
+  eliminati:    () => tx("eliminati", "readonly",  s => s.getAll()),
+  segnaEliminato: v => tx("eliminati", "readwrite", s => s.put(v)),
+  scordaEliminato: id => tx("eliminati", "readwrite", s => s.delete(id))
+};
+
+const STATI = {"da-leggere":"Da leggere", "in-lettura":"In lettura", "letto":"Letto"};
+const ORDINE_STATI = {"in-lettura":0, "da-leggere":1, "letto":2};
+
+/* ---------- stato dell'interfaccia ---------- */
+const stato = {
+  libri: [], filtro: "tutti", ricerca: "",
+  editId: null, detailId: null, coverPending: undefined, editToken: 0, urls: [],
+  risultati: [],                       // esiti della ricerca Open Library / Google Books
+  prefill: null,                       // dati precompilati per il form dal risultato scelto
+  voceLibroId: null, voceId: null,     // editor voce del diario
+  voceTipo: "citazione", voceFotoPending: undefined,
+  filtroVoci: "tutte",
+  ocrInCorso: false
+};
+
+/* ---------- utilità ---------- */
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), 2200);
+}
+function nuovoId(){
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+}
+function dataIt(ts){
+  if(!ts) return "mai";
+  return new Date(ts).toLocaleDateString("it-IT", {day:"2-digit", month:"long", year:"numeric"});
+}
+function dataBreve(ts){
+  if(!ts) return "";
+  return new Date(ts).toLocaleDateString("it-IT", {day:"numeric", month:"short", year:"numeric"});
+}
+function oggiISO(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function urlDi(blob){
+  const u = URL.createObjectURL(blob);
+  stato.urls.push(u);
+  return u;
+}
+function liberaUrl(){
+  stato.urls.forEach(u => URL.revokeObjectURL(u));
+  stato.urls = [];
+}
+function normalizza(s){
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+const perTitolo = (a, b) => normalizza(a.titolo).localeCompare(normalizza(b.titolo), "it");
+function caricaScript(src){
+  return new Promise((res, rej) => {
+    const gia = document.querySelector('script[data-src="' + src + '"]');
+    if(gia){ if(gia.dataset.pronto) return res(); gia.addEventListener("load", res); gia.addEventListener("error", rej); return; }
+    const s = document.createElement("script");
+    s.src = src; s.dataset.src = src;
+    s.onload = () => { s.dataset.pronto = "1"; res(); };
+    s.onerror = () => rej(new Error("Caricamento fallito: " + src));
+    document.head.appendChild(s);
+  });
+}
+
+/* ---------- foto: ridimensiona prima di salvare ---------- */
+async function elaboraFoto(file, latoFoto, latoThumb, qualita){
+  const bitmap = await creaBitmap(file);
+  const foto  = await ridimensiona(bitmap, latoFoto, qualita || 0.85);
+  const thumb = await ridimensiona(bitmap, latoThumb, 0.72);
+  if(bitmap.close) bitmap.close();
+  return {foto, thumb};
+}
+const elaboraCopertina = file => elaboraFoto(file, 900, 360);
+const elaboraPagina    = file => elaboraFoto(file, 1600, 320, 0.82);
+function creaBitmap(file){
+  if(window.createImageBitmap){
+    return createImageBitmap(file, {imageOrientation:"from-image"}).catch(() => daImg(file));
+  }
+  return daImg(file);
+}
+function daImg(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(u); res(img); };
+    img.onerror = e => { URL.revokeObjectURL(u); rej(e); };
+    img.src = u;
+  });
+}
+function ridimensiona(src, maxLato, qualita){
+  const w0 = src.width, h0 = src.height;
+  const scala = Math.min(1, maxLato / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0 * scala)), h = Math.max(1, Math.round(h0 * scala));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  c.getContext("2d").drawImage(src, 0, 0, w, h);
+  return new Promise(res => {
+    if(c.toBlob) c.toBlob(b => res(b || dataUrlABlob(c.toDataURL("image/jpeg", qualita))), "image/jpeg", qualita);
+    else res(dataUrlABlob(c.toDataURL("image/jpeg", qualita)));
+  });
+}
+function dataUrlABlob(dataUrl){
+  const [testa, b64] = dataUrl.split(",");
+  const tipo = /:(.*?);/.exec(testa)[1];
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type:tipo});
+}
+function blobABase64(blob){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
+/* ---------- stelle ---------- */
+const STAR_PATH = "M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.5l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95z";
+function stellaSvg(){
+  return '<svg viewBox="0 0 24 24"><path d="' + STAR_PATH + '"/></svg>';
+}
+function stelleHtml(voto, classe){
+  let h = '<span class="stars ' + classe + '">';
+  for(let i = 1; i <= 5; i++){
+    const f = Math.max(0, Math.min(1, (voto || 0) - (i - 1)));
+    h += '<span class="star">' + stellaSvg() +
+         (f > 0 ? '<span class="fill" style="width:' + (f * 100) + '%">' + stellaSvg() + '</span>' : '') +
+         '</span>';
+  }
+  return h + '</span>';
+}
+
+/* ---------- lista libri ---------- */
+function libriFiltrati(){
+  const q = normalizza(stato.ricerca);
+  return stato.libri
+    .filter(l => {
+      if(stato.filtro !== "tutti" && l.stato !== stato.filtro) return false;
+      if(q){
+        const nelDiario = (l.voci || []).some(v =>
+          normalizza(v.testo).includes(q) || normalizza(v.commento).includes(q));
+        if(!(normalizza(l.titolo).includes(q) || normalizza(l.autore).includes(q) ||
+             normalizza(l.puntiChiave).includes(q) || nelDiario)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (ORDINE_STATI[a.stato] - ORDINE_STATI[b.stato]) || perTitolo(a, b));
+}
+function renderChips(){
+  const voci = [{v:"tutti", t:"Tutti"}].concat(
+    Object.keys(STATI)
+      .filter(s => stato.libri.some(l => l.stato === s))
+      .sort((a, b) => ORDINE_STATI[a] - ORDINE_STATI[b])
+      .map(s => ({v:s, t:STATI[s]})));
+  if(!voci.some(v => v.v === stato.filtro)) stato.filtro = "tutti";
+  $("#chips").innerHTML = voci.length > 1 ? voci.map(v =>
+    '<button class="chip' + (stato.filtro === v.v ? " on" : "") + '" data-f="' + esc(v.v) + '">' + esc(v.t) + '</button>'
+  ).join("") : "";
+}
+function copertinaHtml(l, classe){
+  return l.copertinaThumb || l.copertina
+    ? '<img class="' + classe + '" src="' + urlDi(l.copertinaThumb || l.copertina) + '" alt="" loading="lazy">'
+    : '<div class="' + classe + ' ph"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/></svg></div>';
+}
+function renderLista(){
+  liberaUrl();
+  renderChips();
+  const lista = libriFiltrati();
+  const grid = $("#grid"), vuoto = $("#empty");
+  grid.innerHTML = lista.map(l => {
+    const sotto = l.voto
+      ? stelleHtml(l.voto, "mini")
+      : (l.stato !== "letto" ? '<span class="tag' + (l.stato === "da-leggere" ? " tenue" : "") + '">' + STATI[l.stato] + '</span>' : "");
+    return '<button class="book" data-id="' + esc(l.id) + '">' +
+      copertinaHtml(l, "cover") +
+      '<p class="bname">' + esc(l.titolo) + '</p>' +
+      '<p class="bauth">' + esc(l.autore || "") + '</p>' + sotto +
+    '</button>';
+  }).join("");
+  const nessuno = lista.length === 0;
+  vuoto.hidden = !nessuno;
+  grid.hidden = nessuno;
+  if(nessuno){
+    const filtrando = stato.ricerca || stato.filtro !== "tutti";
+    $("#empty-title").innerHTML = filtrando ? "<b>Nessun libro trovato</b>" : "<b>Nessun libro in libreria</b>";
+    $("#empty-sub").textContent = filtrando ? "Prova a cambiare ricerca o filtro." : 'Tocca "Aggiungi libro" per iniziare.';
+  }
+  renderAvvisi();
+}
+
+/* ---------- avvisi (installazione + backup) ---------- */
+const installata = () =>
+  window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+function rinviato(nome, giorni){
+  const q = Number(localStorage.getItem("rinvio-" + nome) || 0);
+  return q > 0 && (Date.now() - q) / 864e5 < giorni;
+}
+async function renderAvvisi(){
+  const box = $("#notices");
+  const avvisi = [];
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if(iOS && !installata() && localStorage.getItem("avviso-installa") !== "chiuso"){
+    avvisi.push('<div class="notice" data-n="installa">' +
+      '<div><b>Aggiungi l\'app alla schermata Home.</b> Tocca il tasto Condividi di Safari e poi "Aggiungi a Home". ' +
+      'Serve davvero: Safari cancella i dati dei siti aperti solo dal browser, mentre l\'app installata li tiene.</div>' +
+      '<button class="x" data-chiudi="installa" aria-label="Chiudi">&times;</button></div>');
+  }
+  if(gh.collegato() && statoSync.stato === "errore"){
+    avvisi.push('<div class="notice" style="border-left-color:var(--danger)">' +
+      '<div><b>Archivio online:</b> ' + esc(statoSync.messaggio) +
+      ' <button data-vai="impostazioni">Apri le impostazioni</button></div></div>');
+  }
+  const ultimo = await store.setting("ultimoBackup");
+  const giorni = ultimo ? (Date.now() - ultimo) / 864e5 : null;
+  const soglia = gh.collegato() ? 180 : 30;
+  if(!gh.collegato() && stato.libri.length >= 3 && localStorage.getItem("avviso-archivio") !== "chiuso"){
+    avvisi.push('<div class="notice" data-n="archivio">' +
+      '<div><b>I libri stanno solo su questo telefono.</b> Collega l\'archivio online una volta ' +
+      'e da lì in poi ogni libro si salva da solo: cambiando telefono lo ritrovi.' +
+      '<div style="margin-top:6px"><button data-vai="impostazioni">Collega l\'archivio</button></div></div>' +
+      '<button class="x" data-chiudi="archivio" aria-label="Chiudi">&times;</button></div>');
+  }
+  if(gh.collegato() && stato.libri.length >= 3 && (ultimo == null || giorni > soglia) && !rinviato("backup", 14)){
+    avvisi.push('<div class="notice" data-n="backup">' +
+      '<div><b>Fai una copia di scorta.</b> Oltre all\'archivio online conviene tenere un file: ' +
+      (ultimo == null ? "non ne hai ancora fatti." : "l'ultimo risale a " + dataIt(ultimo) + ".") +
+      '<div style="margin-top:6px"><button data-fai="esporta">Salva il file di backup</button></div></div>' +
+      '<button class="x" data-chiudi="backup" aria-label="Chiudi">&times;</button></div>');
+  }
+  box.innerHTML = avvisi.join("");
+}
+
+/* ---------- schermate ---------- */
+function apri(sel){ $(sel).hidden = false; document.body.style.overflow = "hidden"; }
+function chiudi(sel){ $(sel).hidden = true;
+  const aperte = ["#screen-add", "#screen-scan", "#screen-edit", "#screen-detail", "#screen-voce", "#screen-foto", "#screen-settings"];
+  if(!aperte.some(s => !$(s).hidden)) document.body.style.overflow = "";
+}
+
+/* ---------- ricerca nei cataloghi (Open Library + Google Books) ---------- */
+/* con rete lenta meglio arrendersi ed avvisare che restare appesi */
+function fetchConTimeout(url, ms){
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms || 12000);
+  return fetch(url, {signal: ctrl.signal}).finally(() => clearTimeout(t));
+}
+async function cercaCatalogo(query){
+  const out = [];
+  try{
+    const r = await fetchConTimeout("https://openlibrary.org/search.json?limit=12&lang=it&fields=title,author_name,first_publish_year,cover_i,isbn&q=" + encodeURIComponent(query));
+    if(r.ok){
+      const d = await r.json();
+      (d.docs || []).forEach(doc => out.push({
+        titolo: doc.title || "",
+        autore: (doc.author_name || []).slice(0, 2).join(", "),
+        anno: doc.first_publish_year || null,
+        isbn: (doc.isbn || []).find(i => i.length === 13) || (doc.isbn || [])[0] || "",
+        coverUrl: doc.cover_i ? "https://covers.openlibrary.org/b/id/" + doc.cover_i + "-L.jpg" : null
+      }));
+    }
+  }catch(_){}
+  if(out.length < 3){
+    try{
+      const r = await fetchConTimeout("https://www.googleapis.com/books/v1/volumes?maxResults=12&q=" + encodeURIComponent(query));
+      if(r.ok){
+        const d = await r.json();
+        (d.items || []).forEach(it => {
+          const v = it.volumeInfo || {};
+          const isbn = (v.industryIdentifiers || []).find(x => x.type === "ISBN_13");
+          out.push({
+            titolo: v.title || "",
+            autore: (v.authors || []).slice(0, 2).join(", "),
+            anno: v.publishedDate ? Number(v.publishedDate.slice(0, 4)) : null,
+            isbn: isbn ? isbn.identifier : "",
+            coverUrl: v.imageLinks ? String(v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || "").replace("http://", "https://") : null
+          });
+        });
+      }
+    }catch(_){}
+  }
+  /* doppioni via: stesso titolo e stesso autore */
+  const visti = new Set();
+  return out.filter(x => {
+    if(!x.titolo) return false;
+    const k = normalizza(x.titolo) + "|" + normalizza(x.autore);
+    if(visti.has(k)) return false;
+    visti.add(k);
+    return true;
+  });
+}
+async function cercaIsbn(isbn){
+  const trovati = await cercaCatalogo("isbn:" + isbn);
+  if(trovati.length) return trovati[0];
+  return null;
+}
+async function scaricaCover(url){
+  if(!url) return undefined;
+  try{
+    const r = await fetchConTimeout(url, 15000);
+    if(!r.ok) return undefined;
+    const blob = await r.blob();
+    if(!blob.type.startsWith("image/") || blob.size < 1000) return undefined;   // i segnaposto di Open Library sono minuscoli
+    return await elaboraCopertina(blob);
+  }catch(_){ return undefined; }
+}
+
+function renderRisultati(){
+  $("#add-results").innerHTML = stato.risultati.map((r, i) =>
+    '<button class="result" data-i="' + i + '">' +
+      (r.coverUrl ? '<img src="' + esc(r.coverUrl) + '" alt="" loading="lazy">'
+                  : '<div class="noimg"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/></svg></div>') +
+      '<div><p class="rt">' + esc(r.titolo) + '</p>' +
+      '<p class="ra">' + esc(r.autore || "Autore sconosciuto") + (r.anno ? " · " + r.anno : "") + '</p></div>' +
+    '</button>'
+  ).join("");
+}
+async function eseguiRicercaCatalogo(){
+  const q = $("#add-q").value.trim();
+  if(!q){ $("#add-q").focus(); return; }
+  if(!navigator.onLine){ toast("Serve la rete per cercare nel catalogo"); return; }
+  $("#add-results").innerHTML = '<p class="searching">Cerco nel catalogo...</p>';
+  stato.risultati = await cercaCatalogo(q);
+  if(!stato.risultati.length){
+    $("#add-results").innerHTML = '<p class="searching">Niente nel catalogo. Prova con altre parole o inseriscilo a mano.</p>';
+    return;
+  }
+  renderRisultati();
+}
+async function scegliRisultato(r){
+  toast("Scarico la copertina...");
+  const cover = await scaricaCover(r.coverUrl);
+  chiudi("#screen-add");
+  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn, cover});
+}
+
+/* ---------- scanner codice a barre (ZXing, vendored) ---------- */
+let zxingReader = null;
+async function apriScanner(){
+  apri("#screen-scan");
+  try{
+    await caricaScript("vendor/zxing.min.js");
+    if(!zxingReader){
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8]);
+      zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    }
+    await zxingReader.decodeFromVideoDevice(undefined, $("#scan-video"), (result, err) => {
+      if(result){
+        const isbn = result.getText();
+        fermaScanner();
+        chiudi("#screen-scan");
+        gestisciIsbn(isbn);
+      }
+    });
+  }catch(err){
+    fermaScanner();
+    toast("Non riesco ad aprire la fotocamera: fotografa il codice");
+  }
+}
+function fermaScanner(){
+  try{ if(zxingReader) zxingReader.reset(); }catch(_){}
+}
+async function decodificaFotoBarcode(file){
+  try{
+    await caricaScript("vendor/zxing.min.js");
+    const lettore = new ZXing.BrowserMultiFormatReader();
+    const u = URL.createObjectURL(file);
+    try{
+      const result = await lettore.decodeFromImageUrl(u);
+      return result.getText();
+    }finally{ URL.revokeObjectURL(u); }
+  }catch(_){ return null; }
+}
+async function gestisciIsbn(isbn){
+  if(!/^\d{8,13}$/.test(isbn)){ toast("Codice non valido, riprova"); return; }
+  if(!navigator.onLine){
+    toast("Sei offline: inserisco solo il codice, completa a mano");
+    apriEdit(null, {isbn});
+    return;
+  }
+  toast("Cerco il libro...");
+  const r = await cercaIsbn(isbn);
+  if(!r){
+    toast("Non trovato nel catalogo: completa a mano");
+    apriEdit(null, {isbn});
+    return;
+  }
+  if(!r.isbn) r.isbn = isbn;
+  const cover = await scaricaCover(r.coverUrl);
+  chiudi("#screen-add");
+  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn, cover});
+}
+
+/* ---------- scheda libro: nuovo / modifica ---------- */
+function apriEdit(libro, prefill){
+  stato.editId = libro ? libro.id : null;
+  stato.coverPending = undefined;
+  stato.editToken++;
+  const p = prefill || {};
+  $("#edit-title").textContent = libro ? "Modifica libro" : "Nuovo libro";
+  $("#f-titolo").value = libro ? libro.titolo : (p.titolo || "");
+  $("#f-autore").value = libro ? (libro.autore || "") : (p.autore || "");
+  $("#f-anno").value = libro ? (libro.anno || "") : (p.anno || "");
+  $("#f-isbn").value = libro ? (libro.isbn || "") : (p.isbn || "");
+  $("#f-saggio").value = libro && libro.saggio ? "si" : "no";
+  $("#f-stato").value = libro ? libro.stato : "da-leggere";
+  $("#f-inizio").value = libro ? (libro.inizioLettura || "") : "";
+  $("#f-fine").value = libro ? (libro.fineLettura || "") : "";
+  if(p.cover) stato.coverPending = p.cover;
+  mostraAnteprimaCover(p.cover ? p.cover.foto : (libro ? (libro.copertina || libro.copertinaThumb) : null));
+  $("#edit-delete").hidden = !libro;
+  apri("#screen-edit");
+  if(!libro && !p.titolo) setTimeout(() => $("#f-titolo").focus(), 250);
+}
+function mostraAnteprimaCover(blob){
+  const img = $("#cover-preview"), ph = $("#cover-placeholder"), az = $("#cover-actions");
+  if(blob){
+    img.src = urlDi(blob); img.hidden = false; ph.hidden = true; az.hidden = false;
+  }else{
+    img.removeAttribute("src"); img.hidden = true; ph.hidden = false; az.hidden = true;
+  }
+}
+async function salvaLibro(){
+  const titolo = $("#f-titolo").value.trim();
+  if(!titolo){ toast("Metti il titolo"); $("#f-titolo").focus(); return; }
+  let esistente = null;
+  try{
+    if(stato.editId) esistente = await store.get(stato.editId);
+  }catch(_){ toast("Archivio non raggiungibile, riprova"); return; }
+  const nuovoStato = $("#f-stato").value;
+  let inizio = $("#f-inizio").value || null;
+  let fine = $("#f-fine").value || null;
+  /* date automatiche al cambio di stato, se Paolo non le ha già messe */
+  if(nuovoStato === "in-lettura" && !inizio) inizio = oggiISO();
+  if(nuovoStato === "letto" && !fine) fine = oggiISO();
+  const libro = {
+    id: stato.editId || nuovoId(),
+    titolo,
+    autore: $("#f-autore").value.trim(),
+    anno: Number($("#f-anno").value) || null,
+    isbn: $("#f-isbn").value.trim(),
+    saggio: $("#f-saggio").value === "si",
+    stato: nuovoStato,
+    inizioLettura: inizio,
+    fineLettura: fine,
+    voto: esistente ? esistente.voto : null,
+    puntiChiave: esistente ? (esistente.puntiChiave || "") : "",
+    voci: esistente ? (esistente.voci || []) : [],
+    copertina:      esistente ? esistente.copertina : null,
+    copertinaThumb: esistente ? esistente.copertinaThumb : null,
+    createdAt: esistente ? esistente.createdAt : Date.now(),
+    updatedAt: Date.now()
+  };
+  if(stato.coverPending === null){ libro.copertina = null; libro.copertinaThumb = null; }
+  else if(stato.coverPending){ libro.copertina = stato.coverPending.foto; libro.copertinaThumb = stato.coverPending.thumb; }
+  try{
+    await store.put(libro);
+  }catch(_){ toast("Non sono riuscito a salvare, riprova"); return; }
+  await ricarica();
+  chiudi("#screen-edit");
+  toast(esistente ? "Libro aggiornato" : "Libro aggiunto");
+  if(!esistente || stato.detailId === libro.id) mostraDettaglio(libro.id);
+  sincronizza();
+}
+
+/* ---------- modifiche puntuali dal dettaglio ---------- */
+async function aggiornaLibro(id, campi){
+  const l = await store.get(id);
+  if(!l) return null;
+  Object.assign(l, campi, {updatedAt: Date.now()});
+  await store.put(l);
+  await ricarica();
+  return l;
+}
+
+/* ---------- dettaglio ---------- */
+async function mostraDettaglio(id){
+  const l = await store.get(id);
+  if(!l){ chiudi("#screen-detail"); return; }
+  stato.detailId = id;
+  $("#detail-titlebar").textContent = l.titolo;
+  const voci = (l.voci || []).slice().sort((a, b) => a.createdAt - b.createdAt);
+  const nCit = voci.filter(v => v.tipo === "citazione").length;
+  const nNot = voci.length - nCit;
+  const vociFiltrate = voci.filter(v =>
+    stato.filtroVoci === "tutte" ||
+    (stato.filtroVoci === "citazioni" ? v.tipo === "citazione" : v.tipo === "nota"));
+  const mostraPunti = l.saggio || (l.puntiChiave || "").trim();
+
+  $("#detail-body").innerHTML =
+    '<div class="dtop">' +
+      copertinaHtml({copertinaThumb: l.copertina || l.copertinaThumb}, "dcover") +
+      '<div class="dmeta">' +
+        '<h2 class="dname">' + esc(l.titolo) + '</h2>' +
+        '<p class="dauth">' + esc(l.autore || "") + (l.anno ? " · " + l.anno : "") + (l.saggio ? " · saggio" : "") + '</p>' +
+        '<div class="stato-btns">' +
+          Object.keys(STATI).map(s =>
+            '<button class="chip' + (l.stato === s ? " on" : "") + '" data-stato="' + s + '">' + STATI[s] + '</button>'
+          ).join("") +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="vote-row">' +
+      '<span id="d-stars" style="touch-action:manipulation">' + stelleHtml(l.voto, "big") + '</span>' +
+      '<span class="vote-num">' + (l.voto ? String(l.voto).replace(".", ",") : "") + '</span>' +
+      (l.voto ? '<button class="vote-clear" id="d-vote-clear">togli</button>' : "") +
+    '</div>' +
+    '<p class="hint" style="margin:0 0 4px">Tocca le stelle per votare: metà stella, mezzo voto.</p>' +
+    '<div class="rows">' +
+      (l.inizioLettura ? '<div class="row"><span class="k">Inizio lettura</span><span class="v">' + dataBreve(new Date(l.inizioLettura + "T12:00:00").getTime()) + '</span></div>' : "") +
+      (l.fineLettura ? '<div class="row"><span class="k">Fine lettura</span><span class="v">' + dataBreve(new Date(l.fineLettura + "T12:00:00").getTime()) + '</span></div>' : "") +
+      (l.isbn ? '<div class="row"><span class="k">ISBN</span><span class="v">' + esc(l.isbn) + '</span></div>' : "") +
+    '</div>' +
+    (mostraPunti ?
+      '<div class="sect-title"><h3>Punti chiave</h3></div>' +
+      '<textarea id="d-punti" placeholder="I concetti da portare a casa, un punto per riga.">' + esc(l.puntiChiave || "") + '</textarea>' +
+      '<p class="hint" style="margin-top:6px">Si salvano da soli. Puoi anche fartene proporre una bozza da Claude a partire dalle tue citazioni e note.</p>'
+      : "") +
+    '<div class="sect-title"><h3>Diario di lettura</h3>' +
+      '<span class="cnt">' + (voci.length ? nCit + (nCit === 1 ? " citazione" : " citazioni") + ", " + nNot + (nNot === 1 ? " nota" : " note") : "") + '</span></div>' +
+    '<div class="diario-add">' +
+      '<button class="cit" id="d-add-cit">' +
+        '<svg viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2.5l1.2-2h6.6l1.2 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg>' +
+        'Citazione</button>' +
+      '<button class="not" id="d-add-not">' +
+        '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Nota</button>' +
+    '</div>' +
+    (voci.length ?
+      '<div class="chips" id="d-voci-chips">' +
+        [["tutte", "Tutte"], ["citazioni", "Citazioni"], ["note", "Note"]].map(c =>
+          '<button class="chip' + (stato.filtroVoci === c[0] ? " on" : "") + '" data-fv="' + c[0] + '">' + c[1] + '</button>').join("") +
+      '</div>' : "") +
+    '<div id="d-voci">' +
+      (vociFiltrate.length ? vociFiltrate.map(v =>
+        '<button class="voce ' + (v.tipo === "citazione" ? "cit" : "not") + '" data-voce="' + esc(v.id) + '">' +
+          '<p class="vtesto">' + esc(v.testo) + '</p>' +
+          (v.commento ? '<p class="vcommento">' + esc(v.commento) + '</p>' : "") +
+          '<div class="vmeta"><span class="vtag">' + (v.tipo === "citazione" ? "Citazione" : "Nota") + '</span>' +
+            (v.pagina ? '<span>p. ' + esc(v.pagina) + '</span>' : "") +
+            '<span>' + dataBreve(v.createdAt) + '</span></div>' +
+          (v.thumb ? '<img class="vthumb" data-foto="' + esc(v.id) + '" src="' + urlDi(v.thumb) + '" alt="">' : "") +
+        '</button>'
+      ).join("") :
+      (voci.length ? '<p class="hint">Niente con questo filtro.</p>' :
+        '<p class="hint">Qui finiscono, in ordine di lettura, le citazioni fotografate e i tuoi pensieri.</p>')) +
+    '</div>';
+
+  apri("#screen-detail");
+}
+
+/* voto con le stelle: la posizione del tocco decide il mezzo voto */
+async function toccoStelle(e){
+  const cont = $("#d-stars");
+  if(!cont || !stato.detailId) return;
+  const rect = cont.getBoundingClientRect();
+  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+  let voto = Math.ceil((x / rect.width) * 10) / 2;
+  voto = Math.max(0.5, Math.min(5, voto));
+  await aggiornaLibro(stato.detailId, {voto});
+  mostraDettaglio(stato.detailId);
+  sincronizza();
+}
+
+/* punti chiave: salvataggio automatico mentre si scrive */
+let puntiTimer = null;
+function agganciaPunti(e){
+  if(e.target.id !== "d-punti" || !stato.detailId) return;
+  clearTimeout(puntiTimer);
+  const id = stato.detailId, valore = e.target.value;
+  puntiTimer = setTimeout(async () => {
+    await aggiornaLibro(id, {puntiChiave: valore});
+    sincronizza();
+  }, 800);
+}
+
+/* ---------- editor voce del diario ---------- */
+function apriVoce(libroId, voce, tipo){
+  stato.voceLibroId = libroId;
+  stato.voceId = voce ? voce.id : null;
+  stato.voceTipo = voce ? voce.tipo : (tipo || "citazione");
+  stato.voceFotoPending = undefined;
+  stato.editToken++;
+  $("#v-testo").value = voce ? voce.testo : "";
+  $("#v-pagina").value = voce && voce.pagina ? voce.pagina : "";
+  $("#v-commento").value = voce ? (voce.commento || "") : "";
+  $("#voce-delete").hidden = !voce;
+  mostraFotoVoce(voce && voce.foto ? voce.foto : null);
+  aggiornaTipoVoce();
+  nascondiProgressoOcr();
+  apri("#screen-voce");
+}
+function aggiornaTipoVoce(){
+  const cit = stato.voceTipo === "citazione";
+  $("#voce-title").textContent = cit ? "Citazione" : "Nota";
+  $("#lbl-testo").textContent = cit ? "Testo della citazione" : "Il tuo pensiero";
+  $("#v-testo").placeholder = cit ? "Il passaggio del libro" : "Cosa ti è passato per la testa";
+  $("#ocr-box").hidden = !cit;
+  $("#campo-commento").hidden = !cit;
+  document.querySelectorAll("#tipo-switch button").forEach(b =>
+    b.classList.toggle("on", b.dataset.tipo === stato.voceTipo));
+}
+function mostraFotoVoce(blob){
+  const img = $("#ocr-foto");
+  if(blob){ img.src = urlDi(blob); img.hidden = false; $("#btn-ocr-label").textContent = "Rifotografa la pagina"; }
+  else{ img.removeAttribute("src"); img.hidden = true; $("#btn-ocr-label").textContent = "Fotografa la pagina"; }
+}
+async function salvaVoce(){
+  const testo = $("#v-testo").value.trim();
+  if(!testo){ toast(stato.voceTipo === "citazione" ? "Manca il testo della citazione" : "Scrivi la nota"); return; }
+  const l = await store.get(stato.voceLibroId);
+  if(!l){ chiudi("#screen-voce"); return; }
+  l.voci = l.voci || [];
+  let voce = stato.voceId ? l.voci.find(v => v.id === stato.voceId) : null;
+  if(!voce){
+    voce = {id: nuovoId(), createdAt: Date.now(), foto: null, thumb: null};
+    l.voci.push(voce);
+  }
+  voce.tipo = stato.voceTipo;
+  voce.testo = testo;
+  voce.pagina = $("#v-pagina").value.trim();
+  voce.commento = stato.voceTipo === "citazione" ? $("#v-commento").value.trim() : "";
+  voce.updatedAt = Date.now();
+  if(stato.voceFotoPending === null){ voce.foto = null; voce.thumb = null; }
+  else if(stato.voceFotoPending){ voce.foto = stato.voceFotoPending.foto; voce.thumb = stato.voceFotoPending.thumb; }
+  if(voce.tipo === "nota"){ voce.foto = null; voce.thumb = null; }
+  l.updatedAt = Date.now();
+  await store.put(l);
+  await ricarica();
+  chiudi("#screen-voce");
+  toast(stato.voceId ? "Aggiornata" : (voce.tipo === "citazione" ? "Citazione salvata" : "Nota salvata"));
+  mostraDettaglio(l.id);
+  sincronizza();
+}
+
+/* ---------- OCR (Tesseract, vendored) ---------- */
+let ocrWorkerPromise = null;
+function ottieniOcr(){
+  if(!ocrWorkerPromise){
+    ocrWorkerPromise = (async () => {
+      await caricaScript("vendor/tesseract/tesseract.min.js");
+      /* il worker gira fuori dalla pagina: i percorsi devono essere assoluti */
+      const base = new URL("vendor/tesseract/", location.href).href;
+      return Tesseract.createWorker("ita", 1, {
+        workerPath: base + "worker.min.js",
+        corePath: base,
+        langPath: base,
+        logger: m => {
+          if(m.status === "recognizing text") mostraProgressoOcr("Leggo il testo...", m.progress);
+        }
+      });
+    })().catch(err => { ocrWorkerPromise = null; throw err; });
+  }
+  return ocrWorkerPromise;
+}
+function mostraProgressoOcr(testo, frazione){
+  $("#ocr-bar").hidden = false;
+  $("#ocr-stato").hidden = false;
+  $("#ocr-stato").textContent = testo;
+  $("#ocr-bar-fill").style.width = Math.round((frazione || 0) * 100) + "%";
+}
+function nascondiProgressoOcr(){
+  $("#ocr-bar").hidden = true;
+  $("#ocr-stato").hidden = true;
+  $("#ocr-bar-fill").style.width = "0";
+}
+async function fotoPaginaScelta(file){
+  const token = stato.editToken;
+  toast("Preparo la foto...");
+  let elaborata;
+  try{
+    elaborata = await elaboraPagina(file);
+  }catch(_){ toast("Non sono riuscito a leggere la foto"); return; }
+  if(token !== stato.editToken) return;
+  stato.voceFotoPending = elaborata;
+  mostraFotoVoce(elaborata.foto);
+  /* OCR sulla foto grande */
+  stato.ocrInCorso = true;
+  $("#btn-ocr").disabled = true;
+  mostraProgressoOcr("Preparo la lettura del testo...", 0);
+  try{
+    const worker = await ottieniOcr();
+    const esito = await worker.recognize(elaborata.foto);
+    if(token !== stato.editToken) return;
+    const testo = pulisciTestoOcr(esito.data.text);
+    if(testo){
+      const campo = $("#v-testo");
+      campo.value = campo.value.trim() ? campo.value.trim() + "\n" + testo : testo;
+      toast("Testo letto: controllalo e correggi se serve");
+    }else{
+      toast("Non ho riconosciuto testo: scrivilo o usa Scansiona testo");
+    }
+  }catch(err){
+    if(token === stato.editToken) toast("Lettura del testo non riuscita: scrivilo a mano");
+  }finally{
+    stato.ocrInCorso = false;
+    $("#btn-ocr").disabled = false;
+    if(token === stato.editToken) nascondiProgressoOcr();
+  }
+}
+/* l'OCR va a capo a ogni riga stampata: ricompongo i paragrafi */
+function pulisciTestoOcr(testo){
+  return String(testo || "")
+    .split(/\n{2,}/)
+    .map(p => p.replace(/-\n/g, "").replace(/\n/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/* ---------- backup su file ---------- */
+async function libroSuTesto(l){
+  const voci = [];
+  for(const v of (l.voci || [])){
+    voci.push({
+      id: v.id, tipo: v.tipo, testo: v.testo, pagina: v.pagina || "",
+      commento: v.commento || "", createdAt: v.createdAt, updatedAt: v.updatedAt,
+      foto:  v.foto  ? await blobABase64(v.foto)  : null,
+      thumb: v.thumb ? await blobABase64(v.thumb) : null
+    });
+  }
+  return {
+    id: l.id, titolo: l.titolo, autore: l.autore || "", anno: l.anno || null,
+    isbn: l.isbn || "", saggio: !!l.saggio, stato: l.stato,
+    inizioLettura: l.inizioLettura || null, fineLettura: l.fineLettura || null,
+    voto: l.voto || null, puntiChiave: l.puntiChiave || "",
+    createdAt: l.createdAt, updatedAt: l.updatedAt,
+    copertina:      l.copertina      ? await blobABase64(l.copertina)      : null,
+    copertinaThumb: l.copertinaThumb ? await blobABase64(l.copertinaThumb) : null,
+    voci
+  };
+}
+function libroDaTesto(d, extra){
+  return Object.assign({
+    id: d.id || nuovoId(),
+    titolo: d.titolo || "Senza titolo",
+    autore: d.autore || "",
+    anno: d.anno || null,
+    isbn: d.isbn || "",
+    saggio: !!d.saggio,
+    stato: STATI[d.stato] ? d.stato : "da-leggere",
+    inizioLettura: d.inizioLettura || null,
+    fineLettura: d.fineLettura || null,
+    voto: d.voto || null,
+    puntiChiave: d.puntiChiave || "",
+    createdAt: d.createdAt || Date.now(),
+    updatedAt: d.updatedAt || Date.now(),
+    copertina:      d.copertina      ? dataUrlABlob(d.copertina)      : null,
+    copertinaThumb: d.copertinaThumb ? dataUrlABlob(d.copertinaThumb) : null,
+    voci: (d.voci || []).map(v => ({
+      id: v.id || nuovoId(), tipo: v.tipo === "nota" ? "nota" : "citazione",
+      testo: v.testo || "", pagina: v.pagina || "", commento: v.commento || "",
+      createdAt: v.createdAt || Date.now(), updatedAt: v.updatedAt || Date.now(),
+      foto:  v.foto  ? dataUrlABlob(v.foto)  : null,
+      thumb: v.thumb ? dataUrlABlob(v.thumb) : null
+    }))
+  }, extra || {});
+}
+async function esporta(){
+  toast("Preparo il backup...");
+  const libri = await store.all();
+  const dati = {formato: "orecchietta-v1", esportatoIl: new Date().toISOString(), libri: []};
+  for(const l of libri) dati.libri.push(await libroSuTesto(l));
+  const oggi = new Date().toISOString().slice(0, 10);
+  const nome = "orecchietta-" + oggi + ".json";
+  const blob = new Blob([JSON.stringify(dati)], {type:"application/json"});
+  const file = new File([blob], nome, {type:"application/json"});
+  let condiviso = false;
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], title:"Backup Orecchietta"});
+      condiviso = true;
+    }catch(err){
+      if(err && err.name === "AbortError"){ toast("Backup annullato"); return; }
+    }
+  }
+  if(!condiviso){
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  await store.setSetting("ultimoBackup", Date.now());
+  await renderMetaImpostazioni();
+  renderAvvisi();
+  toast(condiviso ? "Backup salvato" : "Backup pronto: salvalo su File");
+}
+async function importa(file){
+  let dati;
+  try{ dati = JSON.parse(await file.text()); }
+  catch(_){ toast("File non valido"); return; }
+  if(!dati || !Array.isArray(dati.libri)){ toast("File non valido"); return; }
+  const scelta = confirm(
+    "Il backup contiene " + dati.libri.length + " libri.\n\n" +
+    "OK = sostituisci tutta la libreria attuale\nAnnulla = aggiungi ai libri esistenti"
+  );
+  if(scelta) await store.clear();
+  for(const l of dati.libri) await store.put(libroDaTesto(l));
+  await ricarica();
+  await renderMetaImpostazioni();
+  toast("Backup importato");
+  sincronizza();
+}
+
+/* ---------- archivio online (GitHub) ----------
+   Un file JSON per libro in libri/, dentro un repository privato.
+   Il telefono resta la copia di lavoro: qui va tutto quello che salvi,
+   così cambiando telefono si recupera senza dipendere dai backup a mano. */
+const GH_REPO = "PaoloB91/orecchietta-dati";
+const GH_BASE = "https://api.github.com/repos/" + GH_REPO;
+const CHIAVE_TOKEN = "orecchietta-gh-token";
+
+const gh = {
+  token: () => localStorage.getItem(CHIAVE_TOKEN) || "",
+  collegato(){ return !!this.token(); },
+  async chiama(metodo, percorso, corpo){
+    const r = await fetch(GH_BASE + percorso, {
+      method: metodo,
+      headers: {
+        "Authorization": "Bearer " + gh.token(),
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      body: corpo ? JSON.stringify(corpo) : undefined
+    });
+    if(metodo === "GET" && r.status === 404) return null;
+    if(!r.ok){
+      const e = new Error("GitHub " + r.status);
+      e.stato = r.status;
+      throw e;
+    }
+    return r.status === 204 ? null : r.json();
+  }
+};
+function testoInBase64(s){
+  const byte = new TextEncoder().encode(s);
+  let bin = "";
+  for(let i = 0; i < byte.length; i += 0x8000) bin += String.fromCharCode.apply(null, byte.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function base64InTesto(b64){
+  const bin = atob(String(b64).replace(/\s/g, ""));
+  const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(arr);
+}
+
+let sincronizzando = false;
+let statoSync = {stato: "spento", messaggio: ""};   // spento | ok | attesa | errore
+
+function daSincronizzare(){
+  return stato.libri.filter(l => !l.syncAt || l.syncAt < l.updatedAt).length;
+}
+async function sincronizza(manuale){
+  if(!gh.collegato() || sincronizzando) return;
+  if(!navigator.onLine){
+    statoSync = {stato:"attesa", messaggio:"Senza rete: sincronizzo appena torna la linea."};
+    renderStatoSync(); return;
+  }
+  sincronizzando = true;
+  statoSync = {stato:"attesa", messaggio:"Sincronizzo..."};
+  renderStatoSync();
+  let scritti = 0;
+  try{
+    for(const e of await store.eliminati()){
+      try{
+        let sha = e.sha;
+        if(!sha){
+          const info = await gh.chiama("GET", "/contents/libri/" + e.id + ".json");
+          sha = info && info.sha;
+        }
+        if(sha) await gh.chiama("DELETE", "/contents/libri/" + e.id + ".json",
+          {message: "Elimino " + (e.titolo || e.id), sha});
+        await store.scordaEliminato(e.id);
+      }catch(err){
+        if(err.stato === 404) await store.scordaEliminato(e.id); else throw err;
+      }
+    }
+    for(const l of await store.all()){
+      if(l.syncAt && l.syncAt >= l.updatedAt) continue;
+      const corpo = {
+        message: "Aggiorno " + l.titolo,
+        content: testoInBase64(JSON.stringify(await libroSuTesto(l)))
+      };
+      if(l.sha) corpo.sha = l.sha;
+      let risp;
+      try{
+        risp = await gh.chiama("PUT", "/contents/libri/" + l.id + ".json", corpo);
+      }catch(err){
+        if(err.stato === 409 || err.stato === 422){
+          const info = await gh.chiama("GET", "/contents/libri/" + l.id + ".json");
+          if(info) corpo.sha = info.sha; else delete corpo.sha;
+          risp = await gh.chiama("PUT", "/contents/libri/" + l.id + ".json", corpo);
+        }else throw err;
+      }
+      l.sha = risp.content.sha;
+      l.syncAt = Date.now();
+      await store.put(l);
+      scritti++;
+    }
+    if(scritti) await ricarica();
+    localStorage.setItem("ultima-sync", String(Date.now()));
+    statoSync = {stato:"ok", messaggio:""};
+    if(manuale) toast(scritti ? "Sincronizzati " + scritti + " libri" : "Già tutto sincronizzato");
+  }catch(err){
+    if(err.stato === 401 || err.stato === 403){
+      statoSync = {stato:"errore", messaggio:"Chiave non valida o scaduta: ricollega l'archivio."};
+    }else if(err.stato === 404){
+      statoSync = {stato:"errore", messaggio:"Archivio online non trovato."};
+    }else{
+      statoSync = {stato:"attesa", messaggio:"Non sono riuscito a collegarmi, riprovo più tardi."};
+    }
+    if(manuale) toast(statoSync.messaggio);
+  }finally{
+    sincronizzando = false;
+    renderStatoSync();
+    renderAvvisi();
+  }
+}
+async function ripristinaDaOnline(silenzioso){
+  if(!gh.collegato()){ toast("Archivio online non collegato"); return 0; }
+  const lista = await gh.chiama("GET", "/contents/libri");
+  if(!Array.isArray(lista) || !lista.length){
+    if(!silenzioso) toast("Nell'archivio online non c'è niente");
+    return 0;
+  }
+  if(!silenzioso && !confirm("Nell'archivio online ci sono " + lista.length +
+      " libri. Li scarico su questo telefono? I libri già presenti vengono sostituiti.")) return 0;
+  toast("Scarico " + lista.length + " libri...");
+  let presi = 0;
+  for(const f of lista){
+    if(!f.name.endsWith(".json")) continue;
+    const info = await gh.chiama("GET", "/contents/libri/" + f.name);
+    let testo;
+    if(info && info.content) testo = base64InTesto(info.content);
+    else{
+      const blob = await gh.chiama("GET", "/git/blobs/" + f.sha);   // file oltre 1 MB
+      testo = base64InTesto(blob.content);
+    }
+    await store.put(libroDaTesto(JSON.parse(testo), {sha: f.sha, syncAt: Date.now()}));
+    presi++;
+  }
+  await ricarica();
+  toast("Scaricati " + presi + " libri");
+  return presi;
+}
+async function collega(token){
+  const pulito = token.trim();
+  if(!pulito){ toast("Incolla la chiave"); return; }
+  localStorage.setItem(CHIAVE_TOKEN, pulito);
+  try{
+    const info = await gh.chiama("GET", "");
+    if(!info) throw Object.assign(new Error("archivio non trovato"), {stato:404});
+  }catch(err){
+    localStorage.removeItem(CHIAVE_TOKEN);
+    statoSync = {stato:"spento", messaggio:""};
+    renderStatoSync();
+    toast(err.stato === 401 ? "Chiave non valida" :
+          err.stato === 403 ? "La chiave non può scrivere su questo archivio" :
+          err.stato === 404 ? "Archivio non trovato" : "Non riesco a collegarmi");
+    return;
+  }
+  toast("Archivio collegato");
+  renderStatoSync();
+  const presi = await ripristinaDaOnline(stato.libri.length > 0);
+  if(!presi) await sincronizza(true);
+  await renderMetaImpostazioni();
+}
+function scollega(){
+  if(!confirm("Scollego l'archivio online. I libri restano su questo telefono. Procedo?")) return;
+  localStorage.removeItem(CHIAVE_TOKEN);
+  statoSync = {stato:"spento", messaggio:""};
+  renderStatoSync();
+  renderMetaImpostazioni();
+  toast("Archivio scollegato");
+}
+function renderStatoSync(){
+  const box = $("#sync-stato");
+  if(!box) return;
+  const pendenti = daSincronizzare();
+  let testo, classe = "";
+  if(!gh.collegato()){
+    testo = "Non collegato: i libri stanno solo su questo telefono.";
+  }else if(statoSync.stato === "errore"){
+    testo = statoSync.messaggio; classe = "ko";
+  }else if(sincronizzando){
+    testo = "Sincronizzo...";
+  }else if(pendenti){
+    testo = pendenti + (pendenti === 1 ? " libro da mandare" : " libri da mandare") +
+      (statoSync.messaggio ? ". " + statoSync.messaggio : "");
+    classe = statoSync.stato === "attesa" ? "" : "ko";
+  }else{
+    const q = Number(localStorage.getItem("ultima-sync") || 0);
+    testo = "Tutto salvato online" + (q ? " (ultimo invio: " + dataIt(q) + ")" : "") + ".";
+    classe = "ok";
+  }
+  box.textContent = testo;
+  box.className = "meta " + classe;
+  $("#sync-collegato").hidden = !gh.collegato();
+  $("#sync-scollegato").hidden = gh.collegato();
+}
+async function renderMetaImpostazioni(){
+  const ultimo = await store.setting("ultimoBackup");
+  $("#backup-meta").textContent = "Ultimo backup: " + dataIt(ultimo) +
+    ". Il file contiene tutti i libri, le foto e il diario: salvalo su File o iCloud.";
+  const nVoci = stato.libri.reduce((n, l) => n + (l.voci || []).length, 0);
+  let spazio = "";
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      const e = await navigator.storage.estimate();
+      if(e.usage != null) spazio = " Spazio occupato: " + (e.usage / 1048576).toFixed(1) + " MB.";
+    }catch(_){}
+  }
+  $("#storage-meta").textContent = stato.libri.length + " libri, " + nVoci + " voci di diario." + spazio;
+}
+
+/* ---------- avvio ---------- */
+async function ricarica(){
+  stato.libri = await store.all();
+  renderLista();
+}
+async function init(){
+  await ricarica();
+  if(navigator.storage && navigator.storage.persist){
+    try{ await navigator.storage.persist(); }catch(_){}
+  }
+  if(gh.collegato()){
+    if(!stato.libri.length){ try{ await ripristinaDaOnline(true); }catch(_){} }
+    sincronizza();
+  }
+  renderStatoSync();
+}
+
+/* ---------- eventi ---------- */
+$("#q").addEventListener("input", e => { stato.ricerca = e.target.value; renderLista(); });
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if(!b) return;
+  stato.filtro = b.dataset.f; renderLista();
+});
+$("#grid").addEventListener("click", e => {
+  const c = e.target.closest(".book"); if(!c) return;
+  stato.filtroVoci = "tutte";
+  mostraDettaglio(c.dataset.id);
+});
+$("#notices").addEventListener("click", e => {
+  const x = e.target.closest("[data-chiudi]");
+  if(x){
+    if(x.dataset.chiudi === "backup") localStorage.setItem("rinvio-backup", String(Date.now()));
+    else localStorage.setItem("avviso-" + x.dataset.chiudi, "chiuso");
+    renderAvvisi();
+    return;
+  }
+  if(e.target.closest("[data-fai=esporta]")){ esporta(); return; }
+  if(e.target.closest("[data-vai=impostazioni]")){ apriImpostazioni(); }
+});
+
+/* aggiunta */
+$("#btn-new").addEventListener("click", () => {
+  stato.risultati = [];
+  $("#add-q").value = "";
+  $("#add-results").innerHTML = "";
+  apri("#screen-add");
+});
+$("#add-cancel").addEventListener("click", () => chiudi("#screen-add"));
+$("#add-search").addEventListener("click", eseguiRicercaCatalogo);
+$("#add-q").addEventListener("keydown", e => { if(e.key === "Enter"){ e.target.blur(); eseguiRicercaCatalogo(); } });
+$("#add-results").addEventListener("click", e => {
+  const b = e.target.closest(".result"); if(!b) return;
+  scegliRisultato(stato.risultati[Number(b.dataset.i)]);
+});
+$("#btn-manual").addEventListener("click", () => { chiudi("#screen-add"); apriEdit(null); });
+$("#btn-scan").addEventListener("click", apriScanner);
+$("#scan-cancel").addEventListener("click", () => { fermaScanner(); chiudi("#screen-scan"); });
+$("#scan-photo").addEventListener("click", () => $("#file-barcode").click());
+$("#file-barcode").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if(!f) return;
+  fermaScanner(); chiudi("#screen-scan");
+  toast("Leggo il codice...");
+  const isbn = await decodificaFotoBarcode(f);
+  if(isbn) gestisciIsbn(isbn);
+  else toast("Codice non leggibile: riprova o inserisci a mano");
+});
+
+/* scheda libro */
+$("#edit-cancel").addEventListener("click", () => chiudi("#screen-edit"));
+$("#edit-save").addEventListener("click", salvaLibro);
+$("#cover-btn").addEventListener("click", () => $("#file-cover").click());
+$("#cover-change").addEventListener("click", e => { e.stopPropagation(); $("#file-cover").click(); });
+$("#cover-remove").addEventListener("click", e => {
+  e.stopPropagation(); stato.coverPending = null; mostraAnteprimaCover(null);
+});
+$("#file-cover").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if(!file) return;
+  toast("Preparo la copertina...");
+  const token = stato.editToken;
+  try{
+    const elaborata = await elaboraCopertina(file);
+    if(token !== stato.editToken) return;
+    stato.coverPending = elaborata;
+    mostraAnteprimaCover(elaborata.foto);
+    toast("Copertina pronta");
+  }catch(err){
+    if(token === stato.editToken) toast("Non sono riuscito a leggere la foto");
+  }
+});
+$("#edit-delete").addEventListener("click", async () => {
+  if(!stato.editId) return;
+  if(!confirm("Eliminare questo libro con tutto il suo diario? L'operazione non si annulla.")) return;
+  const libro = await store.get(stato.editId);
+  await store.del(stato.editId);
+  if(gh.collegato() && libro) await store.segnaEliminato({id: libro.id, titolo: libro.titolo, sha: libro.sha});
+  stato.detailId = null;
+  await ricarica();
+  chiudi("#screen-edit"); chiudi("#screen-detail");
+  toast("Libro eliminato");
+  sincronizza();
+});
+
+/* dettaglio */
+$("#detail-back").addEventListener("click", () => { stato.detailId = null; chiudi("#screen-detail"); });
+$("#detail-edit").addEventListener("click", async () => {
+  const l = await store.get(stato.detailId);
+  if(l) apriEdit(l);
+});
+$("#detail-body").addEventListener("click", async e => {
+  const foto = e.target.closest("[data-foto]");
+  if(foto){
+    e.stopPropagation();
+    const l = await store.get(stato.detailId);
+    const v = l && (l.voci || []).find(x => x.id === foto.dataset.foto);
+    if(v && (v.foto || v.thumb)){
+      $("#foto-full").src = urlDi(v.foto || v.thumb);
+      apri("#screen-foto");
+    }
+    return;
+  }
+  const st = e.target.closest("[data-stato]");
+  if(st){
+    const nuovo = st.dataset.stato;
+    const l = await store.get(stato.detailId);
+    if(!l || l.stato === nuovo) return;
+    const campi = {stato: nuovo};
+    if(nuovo === "in-lettura" && !l.inizioLettura) campi.inizioLettura = oggiISO();
+    if(nuovo === "letto" && !l.fineLettura) campi.fineLettura = oggiISO();
+    await aggiornaLibro(stato.detailId, campi);
+    mostraDettaglio(stato.detailId);
+    sincronizza();
+    return;
+  }
+  const fv = e.target.closest("[data-fv]");
+  if(fv){ stato.filtroVoci = fv.dataset.fv; mostraDettaglio(stato.detailId); return; }
+  if(e.target.closest("#d-vote-clear")){
+    await aggiornaLibro(stato.detailId, {voto: null});
+    mostraDettaglio(stato.detailId);
+    sincronizza();
+    return;
+  }
+  if(e.target.closest("#d-stars")){ toccoStelle(e); return; }
+  if(e.target.closest("#d-add-cit")){ apriVoce(stato.detailId, null, "citazione"); return; }
+  if(e.target.closest("#d-add-not")){ apriVoce(stato.detailId, null, "nota"); return; }
+  const vb = e.target.closest("[data-voce]");
+  if(vb){
+    const l = await store.get(stato.detailId);
+    const v = l && (l.voci || []).find(x => x.id === vb.dataset.voce);
+    if(v) apriVoce(stato.detailId, v);
+  }
+});
+$("#detail-body").addEventListener("input", agganciaPunti);
+$("#foto-chiudi").addEventListener("click", () => chiudi("#screen-foto"));
+$("#screen-foto").addEventListener("click", e => { if(e.target.id === "screen-foto") chiudi("#screen-foto"); });
+
+/* editor voce */
+$("#voce-cancel").addEventListener("click", () => chiudi("#screen-voce"));
+$("#voce-save").addEventListener("click", salvaVoce);
+$("#tipo-switch").addEventListener("click", e => {
+  const b = e.target.closest("[data-tipo]"); if(!b) return;
+  stato.voceTipo = b.dataset.tipo;
+  aggiornaTipoVoce();
+});
+$("#btn-ocr").addEventListener("click", () => { if(!stato.ocrInCorso) $("#file-pagina").click(); });
+$("#file-pagina").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if(f) fotoPaginaScelta(f);
+});
+$("#voce-delete").addEventListener("click", async () => {
+  if(!stato.voceId) return;
+  if(!confirm("Eliminare questa voce dal diario?")) return;
+  const l = await store.get(stato.voceLibroId);
+  if(l){
+    l.voci = (l.voci || []).filter(v => v.id !== stato.voceId);
+    l.updatedAt = Date.now();
+    await store.put(l);
+    await ricarica();
+  }
+  chiudi("#screen-voce");
+  toast("Eliminata");
+  if(l) mostraDettaglio(l.id);
+  sincronizza();
+});
+
+/* impostazioni */
+function apriImpostazioni(){
+  renderMetaImpostazioni(); renderStatoSync(); apri("#screen-settings");
+}
+$("#btn-settings").addEventListener("click", apriImpostazioni);
+$("#settings-back").addEventListener("click", () => chiudi("#screen-settings"));
+$("#btn-collega").addEventListener("click", () => {
+  const t = $("#gh-token").value;
+  $("#gh-token").value = "";
+  collega(t);
+});
+$("#btn-sync").addEventListener("click", () => sincronizza(true));
+$("#btn-ripristina").addEventListener("click", () => ripristinaDaOnline().then(renderMetaImpostazioni));
+$("#btn-scollega").addEventListener("click", scollega);
+window.addEventListener("online", () => sincronizza());
+$("#btn-export").addEventListener("click", esporta);
+$("#btn-import").addEventListener("click", () => $("#file-import").click());
+$("#file-import").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if(f) importa(f);
+});
+
+/* tasto indietro fisico/gesture: chiude la schermata in cima */
+window.addEventListener("popstate", () => {
+  const ordine = ["#screen-foto", "#screen-voce", "#screen-scan", "#screen-edit", "#screen-add", "#screen-detail", "#screen-settings"];
+  const aperte = ordine.filter(s => !$(s).hidden);
+  if(aperte.length){
+    if(aperte[0] === "#screen-scan") fermaScanner();
+    chiudi(aperte[0]);
+    history.pushState(null, "");
+  }
+});
+history.pushState(null, "");
+
+init();
+
+/* service worker: offline + aggiornamento automatico */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+    let ricaricato = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(ricaricato) return;
+      ricaricato = true;
+      location.reload();
+    });
+  });
+}
+</script>
+</body>
+</html>
