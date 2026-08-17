@@ -310,8 +310,9 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
   </div>
   <div class="sbody">
     <video id="scan-video" autoplay playsinline muted></video>
-    <p class="scan-hint">Inquadra il codice sul retro del libro.</p>
+    <p class="scan-hint" id="scan-stato">Inquadra il codice sul retro del libro.</p>
     <button class="btn ghost" id="scan-photo">Non funziona? Fotografa il codice</button>
+    <button class="btn ghost" id="scan-manuale" style="margin-top:10px">Scrivi il codice a mano</button>
   </div>
 </section>
 
@@ -452,6 +453,17 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
     <span class="txtbtn r"></span>
   </div>
   <div class="sbody">
+    <div class="sect">
+      <h3>Catalogo dei libri</h3>
+      <p class="meta" id="books-stato" style="margin-top:0"></p>
+      <div class="addrow">
+        <input type="text" id="books-key" placeholder="Incolla la chiave" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button id="books-salva">Salva</button>
+      </div>
+      <button class="btn ghost" id="books-togli" style="margin-top:10px" hidden>Togli la chiave</button>
+      <p class="meta">Di norma non serve fare niente: l'app interroga il catalogo Google senza chiave.
+      Questo campo è la riserva, da usare solo se un giorno le ricerche smettessero di funzionare.</p>
+    </div>
     <div class="sect">
       <h3>Archivio online</h3>
       <p class="meta" id="sync-stato" style="margin-top:0"></p>
@@ -691,8 +703,10 @@ function renderChips(){
   ).join("") : "";
 }
 function copertinaHtml(l, classe){
-  return l.copertinaThumb || l.copertina
-    ? '<img class="' + classe + '" src="' + urlDi(l.copertinaThumb || l.copertina) + '" alt="" loading="lazy">'
+  const blob = l.copertinaThumb || l.copertina;
+  const src = blob ? urlDi(blob) : (l.copertinaUrl || "");
+  return src
+    ? '<img class="' + classe + '" src="' + esc(src) + '" alt="" loading="lazy">'
     : '<div class="' + classe + ' ph"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/></svg></div>';
 }
 function renderLista(){
@@ -770,67 +784,211 @@ function chiudi(sel){ $(sel).hidden = true;
   if(!aperte.some(s => !$(s).hidden)) document.body.style.overflow = "";
 }
 
-/* ---------- ricerca nei cataloghi (Open Library + Google Books) ---------- */
+/* ---------- ricerca nei cataloghi ----------
+   Fonte principale: il catalogo Google Books, interrogato con il vecchio
+   endpoint "feeds" che risponde in JSONP. Due motivi: copre davvero l'editoria
+   italiana (Open Library non ha nemmeno gli ISBN dei nostri libri) e non ha la
+   quota giornaliera condivisa dell'API nuova, che di giorno è quasi sempre
+   esaurita e faceva fallire ogni ricerca. Open Library resta come riserva.
+   La chiave personale (impostazioni) è opzionale: serve solo se un domani
+   l'endpoint storico venisse spento. */
+const CHIAVE_BOOKS = "orecchietta-books-key";
+const chiaveBooks = () => localStorage.getItem(CHIAVE_BOOKS) || "";
+
 /* con rete lenta meglio arrendersi ed avvisare che restare appesi */
 function fetchConTimeout(url, ms){
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms || 12000);
   return fetch(url, {signal: ctrl.signal}).finally(() => clearTimeout(t));
 }
+/* JSONP: l'endpoint storico non manda gli header CORS, quindi la fetch non lo
+   può leggere; caricarlo come <script> invece funziona. */
+function jsonp(url, ms){
+  return new Promise((res, rej) => {
+    const nome = "orecchiettaCb" + (jsonp._n = (jsonp._n || 0) + 1);
+    const s = document.createElement("script");
+    let fatto = false;
+    const pulisci = () => { try{ delete window[nome]; }catch(_){ window[nome] = undefined; } s.remove(); clearTimeout(t); };
+    const t = setTimeout(() => { if(!fatto){ fatto = true; pulisci(); rej(new Error("timeout")); } }, ms || 12000);
+    window[nome] = dati => { if(fatto) return; fatto = true; pulisci(); res(dati); };
+    s.onerror = () => { if(fatto) return; fatto = true; pulisci(); rej(new Error("irraggiungibile")); };
+    s.src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "alt=json-in-script&callback=" + nome;
+    document.head.appendChild(s);
+  });
+}
+/* una voce del catalogo Google nel formato che usa l'app */
+function daVoceGoogle(e){
+  if(!e) return null;
+  const titoli = (e.dc$title || []).map(x => x.$t).filter(Boolean);
+  const ident = (e.dc$identifier || []).map(x => x.$t);
+  const isbn = ident.filter(x => x.indexOf("ISBN:") === 0).map(x => x.slice(5));
+  const data = (e.dc$date || [])[0];
+  const thumb = (e.link || []).find(l => String(l.rel).indexOf("thumbnail") >= 0);
+  return {
+    titolo: titoli[0] || "",
+    sottotitolo: titoli[1] || "",
+    autore: (e.dc$creator || []).map(x => x.$t).slice(0, 2).join(", "),
+    anno: data ? Number(String(data.$t || data).slice(0, 4)) : null,
+    isbn: isbn.find(x => x.length === 13) || isbn[0] || "",
+    coverUrl: thumb ? String(thumb.href).replace("http://", "https://") : null
+  };
+}
+async function cercaGoogleFeeds(query, quanti){
+  const d = await jsonp("https://books.google.com/books/feeds/volumes?max-results=" + (quanti || 15) +
+    "&q=" + encodeURIComponent(query));
+  const voci = (d && d.feed && d.feed.entry) || [];
+  return voci.map(daVoceGoogle).filter(x => x && x.titolo);
+}
+/* esito: {libri: [...], problema: null | "quota" | "rete"} */
 async function cercaCatalogo(query){
-  const out = [];
+  let out = [], problema = null;
   try{
-    const r = await fetchConTimeout("https://openlibrary.org/search.json?limit=12&lang=it&fields=title,author_name,first_publish_year,cover_i,isbn&q=" + encodeURIComponent(query));
-    if(r.ok){
-      const d = await r.json();
-      (d.docs || []).forEach(doc => out.push({
-        titolo: doc.title || "",
-        autore: (doc.author_name || []).slice(0, 2).join(", "),
-        anno: doc.first_publish_year || null,
-        isbn: (doc.isbn || []).find(i => i.length === 13) || (doc.isbn || [])[0] || "",
-        coverUrl: doc.cover_i ? "https://covers.openlibrary.org/b/id/" + doc.cover_i + "-L.jpg" : null
-      }));
-    }
-  }catch(_){}
-  if(out.length < 3){
+    out = await cercaGoogleFeeds(query);
+  }catch(_){ problema = "rete"; }
+  /* se c'è una chiave personale, l'API nuova dà risultati un filo più puliti */
+  if(!out.length && chiaveBooks()){
     try{
-      const r = await fetchConTimeout("https://www.googleapis.com/books/v1/volumes?maxResults=12&q=" + encodeURIComponent(query));
-      if(r.ok){
+      const r = await fetchConTimeout("https://www.googleapis.com/books/v1/volumes?maxResults=20&country=IT&q=" +
+        encodeURIComponent(query) + "&key=" + encodeURIComponent(chiaveBooks()));
+      if(r.status === 429 || r.status === 403) problema = "quota";
+      else if(r.ok){
         const d = await r.json();
-        (d.items || []).forEach(it => {
+        out = (d.items || []).map(it => {
           const v = it.volumeInfo || {};
-          const isbn = (v.industryIdentifiers || []).find(x => x.type === "ISBN_13");
-          out.push({
-            titolo: v.title || "",
+          const ids = v.industryIdentifiers || [];
+          const i13 = ids.find(x => x.type === "ISBN_13") || ids.find(x => x.type === "ISBN_10");
+          return {
+            titolo: v.title || "", sottotitolo: v.subtitle || "",
             autore: (v.authors || []).slice(0, 2).join(", "),
             anno: v.publishedDate ? Number(v.publishedDate.slice(0, 4)) : null,
-            isbn: isbn ? isbn.identifier : "",
+            isbn: i13 ? i13.identifier : "",
             coverUrl: v.imageLinks ? String(v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || "").replace("http://", "https://") : null
-          });
-        });
+          };
+        }).filter(x => x.titolo);
+        if(out.length) problema = null;
       }
     }catch(_){}
+  }
+  /* riserva: Open Library (buona sui titoli stranieri, debole sull'italiano) */
+  if(out.length < 5){
+    try{
+      const r = await fetchConTimeout("https://openlibrary.org/search.json?limit=12&fields=title,author_name,first_publish_year,cover_i,isbn&q=" + encodeURIComponent(query));
+      if(r.ok){
+        const d = await r.json();
+        (d.docs || []).forEach(doc => out.push({
+          titolo: doc.title || "", sottotitolo: "",
+          autore: (doc.author_name || []).slice(0, 2).join(", "),
+          anno: doc.first_publish_year || null,
+          isbn: (doc.isbn || []).find(i => i.length === 13) || (doc.isbn || [])[0] || "",
+          coverUrl: doc.cover_i ? "https://covers.openlibrary.org/b/id/" + doc.cover_i + "-L.jpg" : null
+        }));
+        if(out.length) problema = null;
+      }
+    }catch(_){ if(!out.length && !problema) problema = "rete"; }
   }
   /* doppioni via: stesso titolo e stesso autore.
      Fuori anche le edizioni in alfabeti che Paolo non legge (ebraico, cirillico, cinese...) */
   const visti = new Set();
-  return out.filter(x => {
+  const libri = out.filter(x => {
     if(!x.titolo || !/[a-zA-ZÀ-ÿ]/.test(x.titolo)) return false;
     const k = normalizza(x.titolo) + "|" + normalizza(x.autore);
     if(visti.has(k)) return false;
     visti.add(k);
     return true;
   });
+  ordinaPerPertinenza(libri, query);
+  return {libri, problema: libri.length ? null : problema};
 }
+/* il catalogo restituisce anche libri che parlano DI quel libro: davanti vanno
+   quelli che contengono davvero le parole cercate nel titolo e nell'autore */
+function ordinaPerPertinenza(libri, query){
+  const parole = normalizza(query).split(/\s+/).filter(p => p.length > 1);
+  if(!parole.length) return;
+  const q = normalizza(query);
+  /* parole spia dei libri che parlano di un altro libro */
+  const spia = /(analisi|riassunto|summary|guida a |guida al |commento|studio su|schede di lettura|universo )/;
+  const punti = l => {
+    const t = normalizza(l.titolo), a = normalizza(l.autore);
+    let p = 0;
+    parole.forEach(w => {
+      if(t.indexOf(w) >= 0) p += 3;
+      if(a.indexOf(w) >= 0) p += 3;
+    });
+    if(t === q) p += 10;                             // il titolo È esattamente quello cercato
+    else if(t.indexOf(parole[0]) === 0) p += 2;      // almeno comincia con la ricerca
+    if(spia.test(t)) p -= 8;                         // "Il deserto dei Tartari di Buzzati" (saggio critico)
+    if(l.coverUrl) p += 1;                           // con copertina è più probabile l'edizione vera
+    p -= Math.min(3, Math.floor(t.split(/\s+/).length / 6));   // titoli chilometrici
+    return p;
+  };
+  libri.map((l, i) => ({l, i, p: punti(l)}))
+    .sort((a, b) => b.p - a.p || a.i - b.i)
+    .forEach((x, n) => libri[n] = x.l);
+}
+/* ISBN (il flusso del codice a barre): tre strade in cascata, perché nessun
+   catalogo da solo copre tutte le edizioni italiane. */
 async function cercaIsbn(isbn){
-  const trovati = await cercaCatalogo("isbn:" + isbn);
-  if(trovati.length) return trovati[0];
-  return null;
+  let problema = null;
+  try{
+    const trovati = await cercaGoogleFeeds("isbn:" + isbn, 3);
+    if(trovati.length) return {libro: trovati[0], problema: null};
+  }catch(_){ problema = "rete"; }
+  /* seconda strada: l'endpoint che risolve un ISBN nella scheda Google, poi la scheda stessa */
+  try{
+    const d = await new Promise((res, rej) => {
+      const nome = "orecchiettaBib" + (jsonp._n = (jsonp._n || 0) + 1);
+      const s = document.createElement("script");
+      let fatto = false;
+      const pulisci = () => { try{ delete window[nome]; }catch(_){} s.remove(); clearTimeout(t); };
+      const t = setTimeout(() => { if(!fatto){ fatto = true; pulisci(); rej(new Error("timeout")); } }, 10000);
+      window[nome] = dati => { if(fatto) return; fatto = true; pulisci(); res(dati); };
+      s.onerror = () => { if(fatto) return; fatto = true; pulisci(); rej(new Error("irraggiungibile")); };
+      s.src = "https://books.google.com/books?jscmd=viewapi&bibkeys=ISBN:" + encodeURIComponent(isbn) + "&callback=" + nome;
+      document.head.appendChild(s);
+    });
+    const voce = d && d["ISBN:" + isbn];
+    const id = voce && /[?&]id=([^&]+)/.exec(voce.info_url || "");
+    if(id){
+      const scheda = await jsonp("https://books.google.com/books/feeds/volumes/" + encodeURIComponent(id[1]));
+      const libro = daVoceGoogle(scheda && (scheda.entry || scheda));
+      if(libro && libro.titolo){
+        if(!libro.coverUrl && voce.thumbnail_url) libro.coverUrl = String(voce.thumbnail_url).replace("http://", "https://");
+        return {libro, problema: null};
+      }
+    }
+  }catch(_){}
+  /* terza strada: la scheda per ISBN di Open Library */
+  try{
+    const r = await fetchConTimeout("https://openlibrary.org/isbn/" + encodeURIComponent(isbn) + ".json", 8000);
+    if(r.ok){
+      const d = await r.json();
+      let autore = "";
+      if(d.authors && d.authors[0] && d.authors[0].key){
+        try{
+          const ra = await fetchConTimeout("https://openlibrary.org" + d.authors[0].key + ".json", 6000);
+          if(ra.ok) autore = (await ra.json()).name || "";
+        }catch(_){}
+      }
+      return {libro: {
+        titolo: d.title || "", sottotitolo: d.subtitle || "", autore,
+        anno: d.publish_date ? Number(String(d.publish_date).slice(-4)) : null,
+        isbn,
+        coverUrl: d.covers && d.covers[0] ? "https://covers.openlibrary.org/b/id/" + d.covers[0] + "-L.jpg" : null
+      }, problema: null};
+    }
+  }catch(_){}
+  return {libro: null, problema};
+}
+/* nelle liste va bene la miniatura; per la copertina da tenere si chiede a
+   Google la versione grande (575px invece di 128) */
+function coverGrande(url){
+  if(!url || url.indexOf("books.google.") < 0) return url;
+  return url.replace(/&zoom=\d+/, "").replace(/&edge=curl/, "") + "&zoom=3";
 }
 async function scaricaCover(url){
   if(!url) return undefined;
   try{
-    const r = await fetchConTimeout(url, 15000);
+    const r = await fetchConTimeout(coverGrande(url), 15000);
     if(!r.ok) return undefined;
     const blob = await r.blob();
     if(!blob.type.startsWith("image/") || blob.size < 1000) return undefined;   // i segnaposto di Open Library sono minuscoli
@@ -848,29 +1006,62 @@ function renderRisultati(){
     '</button>'
   ).join("");
 }
+/* la ricerca parte da sola mentre si scrive: su iPhone il primo tocco sul
+   tasto "Cerca" serve solo a chiudere la tastiera e sembrerebbe non fare nulla */
+let ricercaTimer = null, ricercaSeq = 0;
+function ricercaMentreScrivi(){
+  clearTimeout(ricercaTimer);
+  const q = $("#add-q").value.trim();
+  if(q.length < 3){
+    if(!q) $("#add-results").innerHTML = "";
+    return;
+  }
+  ricercaTimer = setTimeout(eseguiRicercaCatalogo, 550);
+}
 async function eseguiRicercaCatalogo(){
+  clearTimeout(ricercaTimer);
   const q = $("#add-q").value.trim();
   if(!q){ $("#add-q").focus(); return; }
-  if(!navigator.onLine){ toast("Serve la rete per cercare nel catalogo"); return; }
+  if(!navigator.onLine){
+    $("#add-results").innerHTML = '<p class="searching">Sei senza rete: per cercare nel catalogo serve la connessione. Puoi comunque inserire il libro a mano.</p>';
+    return;
+  }
+  const mio = ++ricercaSeq;
   $("#add-results").innerHTML = '<p class="searching">Cerco nel catalogo...</p>';
-  stato.risultati = await cercaCatalogo(q);
-  if(!stato.risultati.length){
-    $("#add-results").innerHTML = '<p class="searching">Niente nel catalogo. Prova con altre parole o inseriscilo a mano.</p>';
+  const esito = await cercaCatalogo(q);
+  if(mio !== ricercaSeq) return;   // nel frattempo Paolo ha scritto altro
+  stato.risultati = esito.libri;
+  if(!esito.libri.length){
+    $("#add-results").innerHTML = '<p class="searching">' + messaggioProblema(esito.problema, q) + '</p>';
     return;
   }
   renderRisultati();
+}
+function messaggioProblema(problema, q){
+  if(problema === "quota")
+    return "Il catalogo non accetta altre richieste per oggi. Puoi inserire il libro a mano, " +
+      "oppure incollare una chiave personale nelle impostazioni.";
+  if(problema === "rete")
+    return "Non riesco a raggiungere il catalogo. Riprova fra poco, oppure inserisci il libro a mano.";
+  return "Nessun libro trovato per “" + esc(q) + "”. Prova col titolo esatto o con l'autore, oppure inseriscilo a mano.";
 }
 async function scegliRisultato(r){
   toast("Scarico la copertina...");
   const cover = await scaricaCover(r.coverUrl);
   chiudi("#screen-add");
-  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn, cover});
+  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn,
+                  cover, coverUrl: cover ? null : coverGrande(r.coverUrl)});
 }
 
 /* ---------- scanner codice a barre (ZXing, vendored) ---------- */
 let zxingReader = null;
+function statoScan(testo){
+  const p = $("#scan-stato");
+  if(p) p.textContent = testo;
+}
 async function apriScanner(){
   apri("#screen-scan");
+  statoScan("Accendo la fotocamera...");
   try{
     await caricaScript("vendor/zxing.min.js");
     if(!zxingReader){
@@ -878,17 +1069,26 @@ async function apriScanner(){
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8]);
       zxingReader = new ZXing.BrowserMultiFormatReader(hints);
     }
-    await zxingReader.decodeFromVideoDevice(undefined, $("#scan-video"), (result, err) => {
-      if(result){
-        const isbn = result.getText();
-        fermaScanner();
-        chiudi("#screen-scan");
-        gestisciIsbn(isbn);
-      }
-    });
+    /* fotocamera posteriore esplicita: quella frontale non inquadra il retro del libro */
+    await zxingReader.decodeFromConstraints(
+      {video: {facingMode: {ideal: "environment"}, width: {ideal: 1280}}},
+      $("#scan-video"),
+      result => {
+        if(result){
+          const isbn = result.getText();
+          fermaScanner();
+          gestisciIsbn(isbn);
+        }
+      });
+    statoScan("Inquadra il codice sul retro del libro.");
   }catch(err){
     fermaScanner();
-    toast("Non riesco ad aprire la fotocamera: fotografa il codice");
+    const nome = err && err.name || "";
+    statoScan(
+      nome === "NotAllowedError" ? "Accesso alla fotocamera negato. Puoi concederlo in Impostazioni iPhone, alla voce Safari, oppure fotografare il codice col tasto qui sotto." :
+      nome === "NotFoundError"   ? "Nessuna fotocamera disponibile: fotografa il codice col tasto qui sotto." :
+      "Non riesco ad aprire la fotocamera: fotografa il codice col tasto qui sotto."
+    );
   }
 }
 function fermaScanner(){
@@ -908,27 +1108,34 @@ async function decodificaFotoBarcode(file){
 async function gestisciIsbn(isbn){
   if(!/^\d{8,13}$/.test(isbn)){ toast("Codice non valido, riprova"); return; }
   if(!navigator.onLine){
-    toast("Sei offline: inserisco solo il codice, completa a mano");
+    toast("Codice " + isbn + " letto, ma sei senza rete: completa a mano");
+    chiudi("#screen-scan"); chiudi("#screen-add");
     apriEdit(null, {isbn});
     return;
   }
-  toast("Cerco il libro...");
-  const r = await cercaIsbn(isbn);
-  if(!r){
-    toast("Non trovato nel catalogo: completa a mano");
+  toast("Codice letto, cerco il libro...");
+  const esito = await cercaIsbn(isbn);
+  chiudi("#screen-scan"); chiudi("#screen-add");
+  if(!esito.libro){
+    /* il codice è stato letto: dirlo, altrimenti sembra che lo scanner non funzioni */
+    toast(esito.problema === "quota"
+      ? "Codice " + isbn + " letto. Catalogo pieno: serve la chiave (impostazioni)"
+      : "Codice " + isbn + " letto, ma il libro non è nel catalogo");
     apriEdit(null, {isbn});
     return;
   }
+  const r = esito.libro;
   if(!r.isbn) r.isbn = isbn;
   const cover = await scaricaCover(r.coverUrl);
-  chiudi("#screen-add");
-  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn, cover});
+  apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn,
+                  cover, coverUrl: cover ? null : coverGrande(r.coverUrl)});
 }
 
 /* ---------- scheda libro: nuovo / modifica ---------- */
 function apriEdit(libro, prefill){
   stato.editId = libro ? libro.id : null;
   stato.coverPending = undefined;
+  stato.coverUrlPending = undefined;
   stato.editToken++;
   const p = prefill || {};
   $("#edit-title").textContent = libro ? "Modifica libro" : "Nuovo libro";
@@ -941,15 +1148,18 @@ function apriEdit(libro, prefill){
   $("#f-inizio").value = libro ? (libro.inizioLettura || "") : "";
   $("#f-fine").value = libro ? (libro.fineLettura || "") : "";
   if(p.cover) stato.coverPending = p.cover;
-  mostraAnteprimaCover(p.cover ? p.cover.foto : (libro ? (libro.copertina || libro.copertinaThumb) : null));
+  if(p.coverUrl) stato.coverUrlPending = p.coverUrl;
+  mostraAnteprimaCover(
+    p.cover ? p.cover.foto : (libro ? (libro.copertina || libro.copertinaThumb) : null),
+    p.coverUrl || (libro && !libro.copertina ? libro.copertinaUrl : null));
   $("#edit-delete").hidden = !libro;
   apri("#screen-edit");
   if(!libro && !p.titolo) setTimeout(() => $("#f-titolo").focus(), 250);
 }
-function mostraAnteprimaCover(blob){
+function mostraAnteprimaCover(blob, url){
   const img = $("#cover-preview"), ph = $("#cover-placeholder"), az = $("#cover-actions");
-  if(blob){
-    img.src = urlDi(blob); img.hidden = false; ph.hidden = true; az.hidden = false;
+  if(blob || url){
+    img.src = blob ? urlDi(blob) : url; img.hidden = false; ph.hidden = true; az.hidden = false;
   }else{
     img.removeAttribute("src"); img.hidden = true; ph.hidden = false; az.hidden = true;
   }
@@ -982,11 +1192,16 @@ async function salvaLibro(){
     voci: esistente ? (esistente.voci || []) : [],
     copertina:      esistente ? esistente.copertina : null,
     copertinaThumb: esistente ? esistente.copertinaThumb : null,
+    copertinaUrl:   esistente ? (esistente.copertinaUrl || "") : "",
     createdAt: esistente ? esistente.createdAt : Date.now(),
     updatedAt: Date.now()
   };
-  if(stato.coverPending === null){ libro.copertina = null; libro.copertinaThumb = null; }
-  else if(stato.coverPending){ libro.copertina = stato.coverPending.foto; libro.copertinaThumb = stato.coverPending.thumb; }
+  if(stato.coverPending === null){ libro.copertina = null; libro.copertinaThumb = null; libro.copertinaUrl = ""; }
+  else if(stato.coverPending){
+    libro.copertina = stato.coverPending.foto; libro.copertinaThumb = stato.coverPending.thumb;
+    libro.copertinaUrl = "";                       // la foto vera ha la precedenza sul collegamento
+  }
+  if(stato.coverUrlPending) libro.copertinaUrl = stato.coverUrlPending;
   try{
     await store.put(libro);
   }catch(_){ toast("Non sono riuscito a salvare, riprova"); return; }
@@ -1023,7 +1238,7 @@ async function mostraDettaglio(id){
 
   $("#detail-body").innerHTML =
     '<div class="dtop">' +
-      copertinaHtml({copertinaThumb: l.copertina || l.copertinaThumb}, "dcover") +
+      copertinaHtml({copertinaThumb: l.copertina || l.copertinaThumb, copertinaUrl: l.copertinaUrl}, "dcover") +
       '<div class="dmeta">' +
         '<h2 class="dname">' + esc(l.titolo) + '</h2>' +
         '<p class="dauth">' + esc(l.autore || "") + (l.anno ? " · " + l.anno : "") + (l.saggio ? " · saggio" : "") + '</p>' +
@@ -1260,6 +1475,7 @@ async function libroSuTesto(l){
     createdAt: l.createdAt, updatedAt: l.updatedAt,
     copertina:      l.copertina      ? await blobABase64(l.copertina)      : null,
     copertinaThumb: l.copertinaThumb ? await blobABase64(l.copertinaThumb) : null,
+    copertinaUrl: l.copertinaUrl || "",
     voci
   };
 }
@@ -1280,6 +1496,7 @@ function libroDaTesto(d, extra){
     updatedAt: d.updatedAt || Date.now(),
     copertina:      d.copertina      ? dataUrlABlob(d.copertina)      : null,
     copertinaThumb: d.copertinaThumb ? dataUrlABlob(d.copertinaThumb) : null,
+    copertinaUrl: d.copertinaUrl || "",
     voci: (d.voci || []).map(v => ({
       id: v.id || nuovoId(), tipo: v.tipo === "nota" ? "nota" : "citazione",
       testo: v.testo || "", pagina: v.pagina || "", commento: v.commento || "",
@@ -1597,6 +1814,7 @@ $("#btn-new").addEventListener("click", () => {
 });
 $("#add-cancel").addEventListener("click", () => chiudi("#screen-add"));
 $("#add-search").addEventListener("click", eseguiRicercaCatalogo);
+$("#add-q").addEventListener("input", ricercaMentreScrivi);
 $("#add-q").addEventListener("keydown", e => { if(e.key === "Enter"){ e.target.blur(); eseguiRicercaCatalogo(); } });
 $("#add-results").addEventListener("click", e => {
   const b = e.target.closest(".result"); if(!b) return;
@@ -1606,6 +1824,14 @@ $("#btn-manual").addEventListener("click", () => { chiudi("#screen-add"); apriEd
 $("#btn-scan").addEventListener("click", apriScanner);
 $("#scan-cancel").addEventListener("click", () => { fermaScanner(); chiudi("#screen-scan"); });
 $("#scan-photo").addEventListener("click", () => $("#file-barcode").click());
+$("#scan-manuale").addEventListener("click", () => {
+  const isbn = prompt("Scrivi il codice sotto le barre (le 13 cifre che iniziano per 978):");
+  if(!isbn) return;
+  const pulito = isbn.replace(/[^\d]/g, "");
+  if(!pulito){ toast("Codice non valido"); return; }
+  fermaScanner();
+  gestisciIsbn(pulito);
+});
 $("#file-barcode").addEventListener("change", async e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -1738,9 +1964,48 @@ $("#voce-delete").addEventListener("click", async () => {
 });
 
 /* impostazioni */
-function apriImpostazioni(){
-  renderMetaImpostazioni(); renderStatoSync(); apri("#screen-settings");
+function renderStatoBooks(){
+  const c = chiaveBooks();
+  const box = $("#books-stato");
+  box.textContent = c
+    ? "Chiave personale attiva (usata come riserva)."
+    : "Nessuna chiave: la ricerca usa il catalogo Google aperto. Va bene così.";
+  box.className = "meta " + (c ? "ok" : "");
+  $("#books-togli").hidden = !c;
+  $("#books-key").value = "";
+  $("#books-key").placeholder = c ? "Sostituisci la chiave" : "Incolla la chiave";
 }
+async function provaChiaveBooks(chiave){
+  try{
+    const r = await fetchConTimeout("https://www.googleapis.com/books/v1/volumes?maxResults=1&country=IT&q=gomorra&key=" + encodeURIComponent(chiave), 10000);
+    if(r.ok) return "ok";
+    if(r.status === 400 || r.status === 403) return "non valida";
+    if(r.status === 429) return "quota";
+    return "errore";
+  }catch(_){ return "rete"; }
+}
+function apriImpostazioni(){
+  renderMetaImpostazioni(); renderStatoSync(); renderStatoBooks(); apri("#screen-settings");
+}
+$("#books-salva").addEventListener("click", async () => {
+  const c = $("#books-key").value.trim();
+  if(!c){ toast("Incolla la chiave"); return; }
+  toast("Verifico la chiave...");
+  const esito = await provaChiaveBooks(c);
+  if(esito === "ok" || esito === "quota"){
+    localStorage.setItem(CHIAVE_BOOKS, c);
+    renderStatoBooks();
+    toast(esito === "ok" ? "Chiave attiva" : "Chiave salvata (quota momentaneamente piena)");
+  }else{
+    toast(esito === "non valida" ? "Chiave non valida o API Books non attiva" :
+          esito === "rete" ? "Non riesco a verificarla: sei senza rete?" : "Non riesco a verificarla");
+  }
+});
+$("#books-togli").addEventListener("click", () => {
+  localStorage.removeItem(CHIAVE_BOOKS);
+  renderStatoBooks();
+  toast("Chiave rimossa");
+});
 $("#btn-settings").addEventListener("click", apriImpostazioni);
 $("#settings-back").addEventListener("click", () => chiudi("#screen-settings"));
 $("#btn-collega").addEventListener("click", () => {
