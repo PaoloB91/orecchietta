@@ -1146,6 +1146,13 @@ function eSegnaposto(m){
   const r = m.w / m.h;
   return r > 0.760 && r < 0.775;      // le copertine vere stanno sotto 0,72
 }
+/* "buona" | "segnaposto" | "sconosciuta" (non si è riusciti a verificarla:
+   con rete lenta va tenuta lo stesso, scartarla sarebbe peggio) */
+async function qualitaCopertina(url){
+  const m = await misuraImmagine(coverGrande(url), 6000);
+  if(!m) return "sconosciuta";
+  return eSegnaposto(m) ? "segnaposto" : "buona";
+}
 /* il catalogo non digerisce le query lunghe: "Irriducibile. La coscienza, la
    vita, i computer e la nostra natura" non trova nulla, "Irriducibile" sì.
    Per cercare si usa quindi il titolo senza sottotitolo, poche parole. */
@@ -1155,9 +1162,14 @@ function titoloBase(t){
 /* cerca una copertina davvero utilizzabile: prima quella dell'edizione scelta,
    poi quelle delle altre edizioni dello stesso libro */
 async function trovaCopertina(libro){
-  if(libro.coverUrl && !eSegnaposto(await misuraImmagine(coverGrande(libro.coverUrl)))) return libro.coverUrl;
+  let ripiego = null;                       // copertina non verificabile, meglio di niente
+  if(libro.coverUrl){
+    const q = await qualitaCopertina(libro.coverUrl);
+    if(q === "buona") return libro.coverUrl;
+    if(q === "sconosciuta") ripiego = libro.coverUrl;
+  }
   const titolo = titoloBase(libro.titolo);
-  if(!titolo) return null;
+  if(!titolo) return ripiego;
   const cognome = normalizza(libro.autore || "").split(/\s+/).pop();
   try{
     const e = await cercaCatalogo(titolo + (libro.autore ? " " + libro.autore : ""));
@@ -1165,11 +1177,13 @@ async function trovaCopertina(libro){
     for(const alt of e.libri){
       if(!alt.coverUrl || alt.coverUrl === libro.coverUrl) continue;
       if(cognome && normalizza(alt.autore).indexOf(cognome) < 0) continue;   // stesso autore
-      if(++provate > 4) break;                                              // non farla lunga
-      if(!eSegnaposto(await misuraImmagine(coverGrande(alt.coverUrl)))) return alt.coverUrl;
+      if(++provate > 3) break;                                              // non farla lunga
+      const q = await qualitaCopertina(alt.coverUrl);
+      if(q === "buona") return alt.coverUrl;
+      if(q === "sconosciuta" && !ripiego) ripiego = alt.coverUrl;
     }
   }catch(_){}
-  return null;
+  return ripiego;
 }
 
 /* Scarica la copertina come immagine vera, quando si può.
