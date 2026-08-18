@@ -975,11 +975,25 @@ function daVoceGoogle(e){
     coverUrl: thumb ? String(thumb.href).replace("http://", "https://") : null
   };
 }
-async function cercaGoogleFeeds(query, quanti){
-  const d = await jsonp("https://books.google.com/books/feeds/volumes?max-results=" + (quanti || 15) +
-    "&q=" + encodeURIComponent(query));
-  const voci = (d && d.feed && d.feed.entry) || [];
-  return voci.map(daVoceGoogle).filter(x => x && x.titolo);
+/* misurato: circa 3 volte su 10 questo endpoint risponde senza risultati anche
+   per ricerche che funzionano benissimo un attimo dopo. È la causa delle
+   ricerche "a vuoto": si riprova due volte prima di arrendersi. */
+const attendi = ms => new Promise(r => setTimeout(r, ms));
+async function cercaGoogleFeeds(query, quanti, tentativi){
+  const n = tentativi || 3;
+  let ultimoErrore = null;
+  for(let i = 0; i < n; i++){
+    try{
+      const d = await jsonp("https://books.google.com/books/feeds/volumes?max-results=" + (quanti || 15) +
+        "&q=" + encodeURIComponent(query));
+      const voci = (d && d.feed && d.feed.entry) || [];
+      const libri = voci.map(daVoceGoogle).filter(x => x && x.titolo);
+      if(libri.length) return libri;
+    }catch(err){ ultimoErrore = err; }
+    if(i < n - 1) await attendi(400 + i * 500);
+  }
+  if(ultimoErrore) throw ultimoErrore;
+  return [];
 }
 /* esito: {libri: [...], problema: null | "quota" | "rete"} */
 async function cercaCatalogo(query){
