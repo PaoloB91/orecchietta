@@ -1,6 +1,6 @@
 /* Service worker: rende l'app apribile anche senza rete.
    CACHE_VERSION va incrementata a ogni pubblicazione (lo fa deploy.sh). */
-const CACHE_VERSION = "orecchietta-v6";
+const CACHE_VERSION = "orecchietta-v7";
 const SHELL = [
   "./",
   "./index.html",

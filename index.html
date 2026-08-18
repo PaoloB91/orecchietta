@@ -1146,14 +1146,21 @@ function eSegnaposto(m){
   const r = m.w / m.h;
   return r > 0.760 && r < 0.775;      // le copertine vere stanno sotto 0,72
 }
+/* il catalogo non digerisce le query lunghe: "Irriducibile. La coscienza, la
+   vita, i computer e la nostra natura" non trova nulla, "Irriducibile" sì.
+   Per cercare si usa quindi il titolo senza sottotitolo, poche parole. */
+function titoloBase(t){
+  return String(t || "").split(/[.:;(\[]/)[0].trim().split(/\s+/).slice(0, 6).join(" ");
+}
 /* cerca una copertina davvero utilizzabile: prima quella dell'edizione scelta,
    poi quelle delle altre edizioni dello stesso libro */
 async function trovaCopertina(libro){
   if(libro.coverUrl && !eSegnaposto(await misuraImmagine(coverGrande(libro.coverUrl)))) return libro.coverUrl;
-  if(!libro.titolo) return null;
+  const titolo = titoloBase(libro.titolo);
+  if(!titolo) return null;
   const cognome = normalizza(libro.autore || "").split(/\s+/).pop();
   try{
-    const e = await cercaCatalogo(libro.titolo + (libro.autore ? " " + libro.autore : ""));
+    const e = await cercaCatalogo(titolo + (libro.autore ? " " + libro.autore : ""));
     let provate = 0;
     for(const alt of e.libri){
       if(!alt.coverUrl || alt.coverUrl === libro.coverUrl) continue;
@@ -2098,7 +2105,7 @@ $("#cover-cerca").addEventListener("click", async () => {
     trovato = e.libro;
   }
   if(!trovato && titolo){
-    const e = await cercaCatalogo(titolo + (autore ? " " + autore : ""));
+    const e = await cercaCatalogo(titoloBase(titolo) + (autore ? " " + autore : ""));
     trovato = e.libri[0] || null;
   }
   if(token !== stato.editToken) return;
