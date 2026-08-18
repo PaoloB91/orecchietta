@@ -1,6 +1,6 @@
 /* Service worker: rende l'app apribile anche senza rete.
    CACHE_VERSION va incrementata a ogni pubblicazione (lo fa deploy.sh). */
-const CACHE_VERSION = "orecchietta-v5";
+const CACHE_VERSION = "orecchietta-v6";
 const SHELL = [
   "./",
   "./index.html",
@@ -50,11 +50,17 @@ self.addEventListener("fetch", e => {
        in cache e si scarica solo se manca */
     if(e.request.destination === "image"){
       e.respondWith(
-        caches.match(e.request).then(inCache => inCache || fetch(e.request).then(r => {
-          const copia = r.clone();
-          caches.open(CACHE_COPERTINE).then(c => c.put(e.request, copia)).catch(() => {});
-          return r;
-        }))
+        caches.match(e.request)
+          .then(inCache => inCache || fetch(e.request).then(r => {
+            /* la copia in cache è un di più: se il telefono la rifiuta
+               (succede con le risposte "opache") l'immagine deve arrivare lo stesso */
+            try{
+              const copia = r.clone();
+              caches.open(CACHE_COPERTINE).then(c => c.put(e.request, copia)).catch(() => {});
+            }catch(_){}
+            return r;
+          }))
+          .catch(() => fetch(e.request))   // qualunque intoppo: si riprova dritti dalla rete
       );
     }
     /* tutto il resto (ricerche nei cataloghi) passa dritto: intercettarlo

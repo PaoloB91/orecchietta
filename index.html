@@ -340,6 +340,11 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
     <div class="photo-actions">
       <button type="button" id="cover-cerca">Cerca la copertina online</button>
     </div>
+    <div class="avviso-ocr" id="cover-avviso" hidden>
+      <b>La copertina non si carica.</b> Il catalogo non permette di scaricarla e il tuo
+      telefono non riesce a mostrarla dal loro indirizzo. Fotografa la copertina con
+      "Foto della copertina" qui sopra: resta salvata nel telefono e si vede sempre.
+    </div>
     <input type="file" id="file-cover" accept="image/*" hidden>
 
     <label class="field">
@@ -1122,15 +1127,64 @@ function coverGrande(url){
   if(!url || url.indexOf("books.google.") < 0) return url;
   return url.replace(/&zoom=\d+/, "").replace(/&edge=curl/, "") + "&zoom=3";
 }
-async function scaricaCover(url){
-  if(!url) return undefined;
+/* Quando il catalogo non ha la copertina di quell'edizione non restituisce
+   "niente": manda un rettangolo bianco con scritto "image not available".
+   Alle dimensioni che chiediamo (zoom=3) è sempre 575x750, quindi si riconosce
+   dalle misure e si scarta, altrimenti finirebbe salvato come copertina. */
+function misuraImmagine(url, ms){
+  return new Promise(res => {
+    const i = new Image();
+    const t = setTimeout(() => res(null), ms || 9000);
+    i.onload = () => { clearTimeout(t); res({w: i.naturalWidth, h: i.naturalHeight}); };
+    i.onerror = () => { clearTimeout(t); res(null); };
+    i.src = url;
+  });
+}
+function eSegnaposto(m){
+  if(!m || !m.w) return true;
+  if(m.w === 575 && m.h === 750) return true;
+  const r = m.w / m.h;
+  return r > 0.760 && r < 0.775;      // le copertine vere stanno sotto 0,72
+}
+/* cerca una copertina davvero utilizzabile: prima quella dell'edizione scelta,
+   poi quelle delle altre edizioni dello stesso libro */
+async function trovaCopertina(libro){
+  if(libro.coverUrl && !eSegnaposto(await misuraImmagine(coverGrande(libro.coverUrl)))) return libro.coverUrl;
+  if(!libro.titolo) return null;
+  const cognome = normalizza(libro.autore || "").split(/\s+/).pop();
   try{
-    const r = await fetchConTimeout(coverGrande(url), 15000);
-    if(!r.ok) return undefined;
-    const blob = await r.blob();
-    if(!blob.type.startsWith("image/") || blob.size < 1000) return undefined;   // i segnaposto di Open Library sono minuscoli
-    return await elaboraCopertina(blob);
-  }catch(_){ return undefined; }
+    const e = await cercaCatalogo(libro.titolo + (libro.autore ? " " + libro.autore : ""));
+    let provate = 0;
+    for(const alt of e.libri){
+      if(!alt.coverUrl || alt.coverUrl === libro.coverUrl) continue;
+      if(cognome && normalizza(alt.autore).indexOf(cognome) < 0) continue;   // stesso autore
+      if(++provate > 4) break;                                              // non farla lunga
+      if(!eSegnaposto(await misuraImmagine(coverGrande(alt.coverUrl)))) return alt.coverUrl;
+    }
+  }catch(_){}
+  return null;
+}
+
+/* Scarica la copertina come immagine vera, quando si può.
+   Google non manda gli header CORS, quindi le sue copertine si possono solo
+   collegare; Open Library invece le lascia scaricare, e per ISBN ne ha parecchie
+   anche di edizioni italiane: si prova prima quella strada, così la copertina
+   finisce nel telefono (e nel backup) invece di dipendere da un indirizzo. */
+async function scaricaCover(url, isbn){
+  const candidati = [];
+  if(isbn) candidati.push("https://covers.openlibrary.org/b/isbn/" + encodeURIComponent(isbn) + "-L.jpg");
+  if(url) candidati.push(coverGrande(url));
+  for(const c of candidati){
+    try{
+      const r = await fetchConTimeout(c, 15000);
+      if(!r.ok) continue;
+      const blob = await r.blob();
+      /* quando Open Library non ha la copertina risponde 200 con un file vuoto */
+      if(blob.type.indexOf("image/") !== 0 || blob.size < 3000) continue;
+      return await elaboraCopertina(blob);
+    }catch(_){}
+  }
+  return undefined;
 }
 
 function renderRisultati(){
@@ -1184,10 +1238,11 @@ function messaggioProblema(problema, q){
 }
 async function scegliRisultato(r){
   toast("Scarico la copertina...");
-  const cover = await scaricaCover(r.coverUrl);
+  const urlBuono = await trovaCopertina(r);
+  const cover = await scaricaCover(urlBuono, r.isbn);
   chiudi("#screen-add");
   apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn,
-                  cover, coverUrl: cover ? null : coverGrande(r.coverUrl)});
+                  cover, coverUrl: cover ? null : (urlBuono ? coverGrande(urlBuono) : null)});
 }
 
 /* ---------- scanner codice a barre (ZXing, vendored) ---------- */
@@ -1263,9 +1318,10 @@ async function gestisciIsbn(isbn){
   }
   const r = esito.libro;
   if(!r.isbn) r.isbn = isbn;
-  const cover = await scaricaCover(r.coverUrl);
+  const urlBuono = await trovaCopertina(r);
+  const cover = await scaricaCover(urlBuono, r.isbn);
   apriEdit(null, {titolo: r.titolo, autore: r.autore, anno: r.anno, isbn: r.isbn,
-                  cover, coverUrl: cover ? null : coverGrande(r.coverUrl)});
+                  cover, coverUrl: cover ? null : (urlBuono ? coverGrande(urlBuono) : null)});
 }
 
 /* ---------- scheda libro: nuovo / modifica ---------- */
@@ -1295,9 +1351,19 @@ function apriEdit(libro, prefill){
 }
 function mostraAnteprimaCover(blob, url){
   const img = $("#cover-preview"), ph = $("#cover-placeholder"), az = $("#cover-actions");
+  const avviso = $("#cover-avviso");
+  avviso.hidden = true;
   if(blob || url){
+    /* le copertine collegate (non scaricabili per via delle regole del catalogo)
+       possono non arrivare: meglio dirlo che lasciare un riquadro vuoto */
+    img.onerror = () => {
+      img.hidden = true; ph.hidden = false;
+      avviso.hidden = false;
+    };
+    img.onload = () => { avviso.hidden = true; };
     img.src = blob ? urlDi(blob) : url; img.hidden = false; ph.hidden = true; az.hidden = false;
   }else{
+    img.onerror = img.onload = null;
     img.removeAttribute("src"); img.hidden = true; ph.hidden = false; az.hidden = true;
   }
 }
@@ -2031,18 +2097,23 @@ $("#cover-cerca").addEventListener("click", async () => {
     const e = await cercaIsbn(isbn);
     trovato = e.libro;
   }
-  if((!trovato || !trovato.coverUrl) && titolo){
+  if(!trovato && titolo){
     const e = await cercaCatalogo(titolo + (autore ? " " + autore : ""));
-    trovato = e.libri.find(x => x.coverUrl) || trovato;
+    trovato = e.libri[0] || null;
   }
   if(token !== stato.editToken) return;
-  if(!trovato || !trovato.coverUrl){ toast("Copertina non trovata: puoi fotografarla"); return; }
-  const cover = await scaricaCover(trovato.coverUrl);
+  const base = trovato || {titolo, autore, isbn, coverUrl: null};
+  if(!base.titolo) base.titolo = titolo;
+  if(!base.autore) base.autore = autore;
+  const urlBuono = await trovaCopertina(base);
+  if(token !== stato.editToken) return;
+  if(!urlBuono){ toast("Copertina non trovata: puoi fotografarla"); return; }
+  const cover = await scaricaCover(urlBuono, isbn || base.isbn);
   if(token !== stato.editToken) return;
   stato.coverPending = cover || undefined;
-  stato.coverUrlPending = cover ? undefined : coverGrande(trovato.coverUrl);
-  mostraAnteprimaCover(cover ? cover.foto : null, cover ? null : coverGrande(trovato.coverUrl));
-  toast("Copertina trovata");
+  stato.coverUrlPending = cover ? undefined : coverGrande(urlBuono);
+  mostraAnteprimaCover(cover ? cover.foto : null, cover ? null : coverGrande(urlBuono));
+  toast(cover ? "Copertina scaricata" : "Copertina trovata");
 });
 $("#file-cover").addEventListener("change", async e => {
   const file = e.target.files && e.target.files[0];
